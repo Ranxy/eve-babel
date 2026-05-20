@@ -25,6 +25,7 @@ export interface IpcController {
   setChannelPinned: (channelName: string, pinned: boolean) => Promise<BootstrapPayload>
   updateSettings: (update: AppSettingsUpdate) => Promise<BootstrapPayload>
   saveLlmProviderProfile: (input: SaveLlmProviderProfileInput) => Promise<BootstrapPayload>
+  deleteLlmProviderProfile: (profileId: string) => Promise<BootstrapPayload>
   setActiveLlmProviderProfile: (profileId: string) => Promise<BootstrapPayload>
   fetchLlmProviderModels: (input: FetchLlmProviderModelsInput) => Promise<LlmProviderModel[]>
 }
@@ -49,6 +50,9 @@ export function registerIpcRouter(controller: IpcController): void {
   ipcMain.handle('app:updateSettings', (_event, update: AppSettingsUpdate) => controller.updateSettings(update))
   ipcMain.handle('app:saveLlmProviderProfile', (_event, input: SaveLlmProviderProfileInput) => {
     return controller.saveLlmProviderProfile(input)
+  })
+  ipcMain.handle('app:deleteLlmProviderProfile', (_event, profileId: string) => {
+    return controller.deleteLlmProviderProfile(profileId)
   })
   ipcMain.handle('app:setActiveLlmProviderProfile', (_event, profileId: string) => {
     return controller.setActiveLlmProviderProfile(profileId)

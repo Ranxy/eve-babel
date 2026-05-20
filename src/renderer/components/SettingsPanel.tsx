@@ -23,6 +23,7 @@ interface SettingsPanelProps {
   onOpenLlmDebugFolder: () => void
   onSaveSettings: (update: AppSettingsUpdate) => void
   onSaveLlmProviderProfile: (input: SaveLlmProviderProfileInput) => void
+  onDeleteLlmProviderProfile: (profileId: string) => void
   onSetActiveLlmProviderProfile: (profileId: string) => void
   onFetchLlmProviderModels: (input: FetchLlmProviderModelsInput) => Promise<LlmProviderModel[]>
 }
@@ -89,6 +90,7 @@ export function SettingsPanel(props: SettingsPanelProps) {
             llmProviderState={props.llmProviderState}
             onFetchLlmProviderModels={props.onFetchLlmProviderModels}
             onSaveLlmProviderProfile={props.onSaveLlmProviderProfile}
+            onDeleteLlmProviderProfile={props.onDeleteLlmProviderProfile}
             onSetActiveLlmProviderProfile={props.onSetActiveLlmProviderProfile}
           />
         ) : (
@@ -99,6 +101,7 @@ export function SettingsPanel(props: SettingsPanelProps) {
             onCancelQueuedTranslations={props.onCancelQueuedTranslations}
             onOpenLlmDebugFolder={props.onOpenLlmDebugFolder}
             onSaveSettings={props.onSaveSettings}
+            onSetActiveLlmProviderProfile={props.onSetActiveLlmProviderProfile}
           />
         )}
       </div>

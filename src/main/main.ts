@@ -14,7 +14,8 @@ import {
   type ChannelSummary,
   type ChatSessionFile,
   type FetchLlmProviderModelsInput,
-  type MessagePageCursor
+  type MessagePageCursor,
+  type SaveLlmProviderProfileInput
 } from '../shared/types'
 import { registerIpcRouter, emitChannels, emitMessages, emitStatus } from './ipc/ipcRouter'
 import { ChannelRegistry } from './services/channelRegistry'
@@ -315,13 +316,7 @@ class EveBabelApp {
     return this.getBootstrapData()
   }
 
-  async saveLlmProviderProfile(input: {
-    profileId?: string
-    providerId: 'openai'
-    modelName: string
-    apiKey?: string
-    activate?: boolean
-  }): Promise<BootstrapPayload> {
+  async saveLlmProviderProfile(input: SaveLlmProviderProfileInput): Promise<BootstrapPayload> {
     const nextSnapshot = await this.llmConfigStore.saveProfile(input)
     this.config = this.composeRuntimeConfig(this.configStore.getConfig(), nextSnapshot.resolvedConfig)
     await this.translationQueue.refreshConfiguration(this.config)
@@ -336,6 +331,19 @@ class EveBabelApp {
 
   async setActiveLlmProviderProfile(profileId: string): Promise<BootstrapPayload> {
     const nextSnapshot = await this.llmConfigStore.setActiveProfile(profileId)
+    this.config = this.composeRuntimeConfig(this.configStore.getConfig(), nextSnapshot.resolvedConfig)
+    await this.translationQueue.refreshConfiguration(this.config)
+
+    if (this.translationQueue.getStatus().configured) {
+      await this.enqueueHistoryTranslationsForEnabledChannels(this.characterRegistry.getSelectedCharacterId())
+    }
+
+    this.publishStatus()
+    return this.getBootstrapData()
+  }
+
+  async deleteLlmProviderProfile(profileId: string): Promise<BootstrapPayload> {
+    const nextSnapshot = await this.llmConfigStore.deleteProfile(profileId)
     this.config = this.composeRuntimeConfig(this.configStore.getConfig(), nextSnapshot.resolvedConfig)
     await this.translationQueue.refreshConfiguration(this.config)
 
@@ -773,6 +781,7 @@ if (hasSingleInstanceLock) {
       setChannelPinned: (channelName, pinned) => eveBabelApp.setChannelPinned(channelName, pinned),
       updateSettings: (update) => eveBabelApp.updateSettings(update),
       saveLlmProviderProfile: (input) => eveBabelApp.saveLlmProviderProfile(input),
+      deleteLlmProviderProfile: (profileId) => eveBabelApp.deleteLlmProviderProfile(profileId),
       setActiveLlmProviderProfile: (profileId) => eveBabelApp.setActiveLlmProviderProfile(profileId),
       fetchLlmProviderModels: (input) => eveBabelApp.fetchLlmProviderModels(input)
     })

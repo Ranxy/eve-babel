@@ -22,6 +22,7 @@ const api: EveBabelApi = {
   },
   updateSettings: (update: AppSettingsUpdate) => ipcRenderer.invoke('app:updateSettings', update),
   saveLlmProviderProfile: (input) => ipcRenderer.invoke('app:saveLlmProviderProfile', input),
+  deleteLlmProviderProfile: (profileId: string) => ipcRenderer.invoke('app:deleteLlmProviderProfile', profileId),
   setActiveLlmProviderProfile: (profileId: string) => ipcRenderer.invoke('app:setActiveLlmProviderProfile', profileId),
   fetchLlmProviderModels: (input) => ipcRenderer.invoke('app:fetchLlmProviderModels', input),
   onMessagesUpsert: (listener: (messages: ChatMessage[]) => void) => {

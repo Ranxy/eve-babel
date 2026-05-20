@@ -313,6 +313,7 @@ export function useAppStore() {
       setChannelPinned: (channelName: string, pinned: boolean) => runAction(window.eveBabel.setChannelPinned(channelName, pinned)),
       updateSettings: (update: AppSettingsUpdate) => runAction(window.eveBabel.updateSettings(update)),
       saveLlmProviderProfile: (input: SaveLlmProviderProfileInput) => runAction(window.eveBabel.saveLlmProviderProfile(input)),
+      deleteLlmProviderProfile: (profileId: string) => runAction(window.eveBabel.deleteLlmProviderProfile(profileId)),
       setActiveLlmProviderProfile: (profileId: string) => runAction(window.eveBabel.setActiveLlmProviderProfile(profileId)),
       fetchLlmProviderModels: (input: FetchLlmProviderModelsInput) => window.eveBabel.fetchLlmProviderModels(input),
       loadChannelMessages,

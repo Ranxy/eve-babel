@@ -32,8 +32,7 @@ describe('LlmConfigStore', () => {
     const nextConfig = await store.saveProfile({
       providerId: 'openai',
       modelName: 'custom-model',
-      apiKey: 'secret-token',
-      activate: true
+      apiKey: 'secret-token'
     })
 
     expect(nextConfig.activeProfileId).toBe(nextConfig.profiles[0]?.profileId ?? null)
@@ -88,16 +87,14 @@ describe('LlmConfigStore', () => {
     const firstSnapshot = await store.saveProfile({
       providerId: 'openai',
       modelName: 'gpt-4.1-mini',
-      apiKey: 'first-secret',
-      activate: true
+      apiKey: 'first-secret'
     })
     const firstProfileId = firstSnapshot.activeProfileId
 
     const secondSnapshot = await store.saveProfile({
       providerId: 'openai',
       modelName: 'gpt-4.1',
-      apiKey: 'second-secret',
-      activate: false
+      apiKey: 'second-secret'
     })
     const secondProfileId = secondSnapshot.profiles.find((profile) => profile.modelName === 'gpt-4.1')?.profileId
 

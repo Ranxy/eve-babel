@@ -9,6 +9,7 @@ interface GeneralSettingsPageProps {
   onCancelQueuedTranslations: () => void
   onOpenLlmDebugFolder: () => void
   onSaveSettings: (update: AppSettingsUpdate) => void
+  onSetActiveLlmProviderProfile: (profileId: string) => void
 }
 
 export function GeneralSettingsPage(props: GeneralSettingsPageProps) {
@@ -47,6 +48,27 @@ export function GeneralSettingsPage(props: GeneralSettingsPageProps) {
       </div>
 
       <div className="settings-grid">
+        <label className="settings-field">
+          <span className="settings-field-label">Active translation model</span>
+          <select
+            value={props.llmProviderState.activeProfileId ?? ''}
+            onChange={(event) => {
+              if (event.target.value) props.onSetActiveLlmProviderProfile(event.target.value)
+            }}
+          >
+            {props.llmProviderState.profiles.length === 0 ? (
+              <option value="">No models configured</option>
+            ) : (
+              props.llmProviderState.profiles.map((profile) => (
+                <option key={profile.profileId} value={profile.profileId}>
+                  {profile.providerId} / {profile.modelName}
+                </option>
+              ))
+            )}
+          </select>
+          <span className="settings-field-hint">The model used for live translation. Configure models in the Providers tab.</span>
+        </label>
+
         <label className="settings-field">
           <span className="settings-field-label">Target language</span>
           <select

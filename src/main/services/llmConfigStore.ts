@@ -29,6 +29,7 @@ type ProviderProfileRow = {
   model_name: string
   encrypted_api_key: string | null
   is_active: number
+  is_selected: number
   created_at: string
   updated_at: string
 }
@@ -85,6 +86,7 @@ export class LlmConfigStore {
     }
 
     this.initializeSchema()
+    this.migrateIsSelectedColumnIfNeeded()
     await this.migrateLegacySqliteRowIfNeeded()
     await this.migrateLegacyFilesIfNeeded()
     await this.persist()
@@ -92,7 +94,8 @@ export class LlmConfigStore {
   }
 
   getSnapshot(): LlmConfigSnapshot {
-    const profiles = this.getProfileRows().map((row) => ({
+    const rows = this.getProfileRows()
+    const profiles = rows.map((row) => ({
       profileId: row.profile_id,
       providerId: row.provider_id as LlmProviderId,
       apiBaseUrl: row.api_base_url,
@@ -103,34 +106,35 @@ export class LlmConfigStore {
       isActive: row.is_active === 1
     }))
     const resolvedConfig = this.getActiveResolvedConfig()
+    const selectedRow = rows.find((r) => r.is_selected === 1)
 
     return {
       profiles,
-      activeProfileId: profiles.find((profile) => profile.isActive)?.profileId ?? null,
+      activeProfileId: selectedRow?.profile_id ?? null,
       resolvedConfig
     }
   }
 
   getActiveResolvedConfig(): LlmResolvedConfig | null {
-    const activeProfile = this.getActiveProfileRow()
-    if (!activeProfile) {
+    const selectedProfile = this.getSelectedProfileRow()
+    if (!selectedProfile) {
       return null
     }
 
     return {
-      providerId: activeProfile.provider_id as LlmProviderId,
-      apiBaseUrl: activeProfile.api_base_url,
-      modelName: activeProfile.model_name
+      providerId: selectedProfile.provider_id as LlmProviderId,
+      apiBaseUrl: selectedProfile.api_base_url,
+      modelName: selectedProfile.model_name
     }
   }
 
   async getActiveApiKey(): Promise<string | null> {
-    const activeProfile = this.getActiveProfileRow()
-    if (!activeProfile?.encrypted_api_key) {
+    const selectedProfile = this.getSelectedProfileRow()
+    if (!selectedProfile?.encrypted_api_key) {
       return null
     }
 
-    return decryptStoredValue(activeProfile.encrypted_api_key)
+    return decryptStoredValue(selectedProfile.encrypted_api_key)
   }
 
   async getApiKeyForProfile(profileId: string): Promise<string | null> {
@@ -156,22 +160,31 @@ export class LlmConfigStore {
       throw new Error(`Provider profile not found: ${input.profileId}`)
     }
 
-    const activeProfile = this.getActiveProfileRow()
-    const shouldActivate =
-      typeof input.activate === 'boolean' ? input.activate : current?.is_active === 1 || !activeProfile
-
-    if (shouldActivate) {
-      database.run('UPDATE llm_provider_profiles SET is_active = 0 WHERE is_active != 0')
-    }
+    // Auto-select this profile if nothing is currently selected
+    const selectedProfile = this.getSelectedProfileRow()
+    const shouldAutoSelect = !selectedProfile
 
     const now = new Date().toISOString()
     const trimmedApiKey = typeof input.apiKey === 'string' ? input.apiKey.trim() : undefined
-    const encryptedApiKey =
-      typeof trimmedApiKey === 'undefined'
-        ? current?.encrypted_api_key ?? null
-        : trimmedApiKey
-          ? await encryptValue(trimmedApiKey)
-          : null
+
+    let encryptedApiKey: string | null
+    if (typeof trimmedApiKey !== 'undefined') {
+      encryptedApiKey = trimmedApiKey ? await encryptValue(trimmedApiKey) : null
+    } else if (current) {
+      encryptedApiKey = current.encrypted_api_key ?? null
+    } else if (input.copyApiKeyFromProfileId) {
+      const sourceProfile = this.getProfileRow(input.copyApiKeyFromProfileId)
+      encryptedApiKey = sourceProfile?.encrypted_api_key ?? null
+    } else {
+      encryptedApiKey = null
+    }
+
+    if (shouldAutoSelect) {
+      database.run('UPDATE llm_provider_profiles SET is_selected = 0 WHERE is_selected != 0')
+    }
+
+    const profileId = current?.profile_id ?? randomUUID()
+    const isSelected = shouldAutoSelect ? 1 : (current?.is_selected ?? 0)
 
     database.run(
       `
@@ -182,6 +195,7 @@ export class LlmConfigStore {
           model_name,
           encrypted_api_key,
           is_active,
+          is_selected,
           created_at,
           updated_at
         )
@@ -191,7 +205,8 @@ export class LlmConfigStore {
           $apiBaseUrl,
           $modelName,
           $encryptedApiKey,
-          $isActive,
+          1,
+          $isSelected,
           $createdAt,
           $updatedAt
         )
@@ -200,16 +215,17 @@ export class LlmConfigStore {
           api_base_url = excluded.api_base_url,
           model_name = excluded.model_name,
           encrypted_api_key = excluded.encrypted_api_key,
-          is_active = excluded.is_active,
+          is_active = 1,
+          is_selected = excluded.is_selected,
           updated_at = excluded.updated_at
       `,
       {
-        $profileId: current?.profile_id ?? randomUUID(),
+        $profileId: profileId,
         $providerId: input.providerId,
         $apiBaseUrl: current?.api_base_url ?? providerDefinition.defaultApiBaseUrl,
         $modelName: modelName,
         $encryptedApiKey: encryptedApiKey,
-        $isActive: shouldActivate ? 1 : 0,
+        $isSelected: isSelected,
         $createdAt: current?.created_at ?? now,
         $updatedAt: now
       }
@@ -227,14 +243,42 @@ export class LlmConfigStore {
       throw new Error(`Provider profile not found: ${profileId}`)
     }
 
-    database.run('UPDATE llm_provider_profiles SET is_active = 0 WHERE is_active != 0')
+    database.run('UPDATE llm_provider_profiles SET is_selected = 0 WHERE is_selected != 0')
     database.run(
-      'UPDATE llm_provider_profiles SET is_active = 1, updated_at = $updatedAt WHERE profile_id = $profileId',
+      'UPDATE llm_provider_profiles SET is_selected = 1, updated_at = $updatedAt WHERE profile_id = $profileId',
       {
         $profileId: profileId,
         $updatedAt: new Date().toISOString()
       }
     )
+
+    await this.persist()
+    return this.getSnapshot()
+  }
+
+  async deleteProfile(profileId: string): Promise<LlmConfigSnapshot> {
+    const database = this.getDatabase()
+    const current = this.getProfileRow(profileId)
+
+    if (!current) {
+      return this.getSnapshot()
+    }
+
+    database.run('DELETE FROM llm_provider_profiles WHERE profile_id = $profileId', {
+      $profileId: profileId
+    })
+
+    // If we deleted the selected profile, auto-select another (most recently updated)
+    if (current.is_selected === 1) {
+      database.run(
+        `UPDATE llm_provider_profiles SET is_selected = 1, updated_at = $updatedAt
+         WHERE profile_id = (
+           SELECT profile_id FROM llm_provider_profiles
+           WHERE is_active = 1 ORDER BY updated_at DESC LIMIT 1
+         )`,
+        { $updatedAt: new Date().toISOString() }
+      )
+    }
 
     await this.persist()
     return this.getSnapshot()
@@ -250,19 +294,38 @@ export class LlmConfigStore {
         model_name TEXT NOT NULL,
         encrypted_api_key TEXT,
         is_active INTEGER NOT NULL DEFAULT 0,
+        is_selected INTEGER NOT NULL DEFAULT 0,
         created_at TEXT NOT NULL,
         updated_at TEXT NOT NULL
       );
     `)
   }
 
+  private migrateIsSelectedColumnIfNeeded(): void {
+    const database = this.getDatabase()
+    try {
+      database.exec('ALTER TABLE llm_provider_profiles ADD COLUMN is_selected INTEGER NOT NULL DEFAULT 0')
+      // Column was just added — migrate: mark the previously-active profile as selected
+      database.exec(`
+        UPDATE llm_provider_profiles SET is_selected = 1
+        WHERE profile_id = (
+          SELECT profile_id FROM llm_provider_profiles
+          WHERE is_active = 1
+          ORDER BY updated_at DESC LIMIT 1
+        )
+      `)
+    } catch {
+      // Column already exists — nothing to do
+    }
+  }
+
   private getProfileRows(): ProviderProfileRow[] {
     const database = this.getDatabase()
     const statement = database.prepare(
       `
-        SELECT profile_id, provider_id, api_base_url, model_name, encrypted_api_key, is_active, created_at, updated_at
+        SELECT profile_id, provider_id, api_base_url, model_name, encrypted_api_key, is_active, is_selected, created_at, updated_at
         FROM llm_provider_profiles
-        ORDER BY is_active DESC, updated_at DESC, created_at DESC
+        ORDER BY is_selected DESC, is_active DESC, updated_at DESC, created_at DESC
       `
     )
     const rows: ProviderProfileRow[] = []
@@ -279,7 +342,7 @@ export class LlmConfigStore {
     const database = this.getDatabase()
     const statement = database.prepare(
       `
-        SELECT profile_id, provider_id, api_base_url, model_name, encrypted_api_key, is_active, created_at, updated_at
+        SELECT profile_id, provider_id, api_base_url, model_name, encrypted_api_key, is_active, is_selected, created_at, updated_at
         FROM llm_provider_profiles
         WHERE profile_id = $profileId
       `
@@ -290,13 +353,13 @@ export class LlmConfigStore {
     return row
   }
 
-  private getActiveProfileRow(): ProviderProfileRow | null {
+  private getSelectedProfileRow(): ProviderProfileRow | null {
     const database = this.getDatabase()
     const statement = database.prepare(
       `
-        SELECT profile_id, provider_id, api_base_url, model_name, encrypted_api_key, is_active, created_at, updated_at
+        SELECT profile_id, provider_id, api_base_url, model_name, encrypted_api_key, is_active, is_selected, created_at, updated_at
         FROM llm_provider_profiles
-        WHERE is_active = 1
+        WHERE is_selected = 1
         ORDER BY updated_at DESC
         LIMIT 1
       `
@@ -365,10 +428,11 @@ export class LlmConfigStore {
           model_name,
           encrypted_api_key,
           is_active,
+          is_selected,
           created_at,
           updated_at
         )
-        VALUES ($profileId, $providerId, $apiBaseUrl, $modelName, $encryptedApiKey, 1, $createdAt, $updatedAt)
+        VALUES ($profileId, $providerId, $apiBaseUrl, $modelName, $encryptedApiKey, 1, 1, $createdAt, $updatedAt)
       `,
       {
         $profileId: randomUUID(),
@@ -405,10 +469,11 @@ export class LlmConfigStore {
           model_name,
           encrypted_api_key,
           is_active,
+          is_selected,
           created_at,
           updated_at
         )
-        VALUES ($profileId, $providerId, $apiBaseUrl, $modelName, $encryptedApiKey, 1, $createdAt, $updatedAt)
+        VALUES ($profileId, $providerId, $apiBaseUrl, $modelName, $encryptedApiKey, 1, 1, $createdAt, $updatedAt)
       `,
       {
         $profileId: randomUUID(),

@@ -189,7 +189,7 @@ export interface SaveLlmProviderProfileInput {
   providerId: LlmProviderId
   modelName: string
   apiKey?: string
-  activate?: boolean
+  copyApiKeyFromProfileId?: string
 }
 
 export interface FetchLlmProviderModelsInput {
@@ -219,6 +219,7 @@ export interface EveBabelApi {
   setChannelPinned: (channelName: string, pinned: boolean) => Promise<BootstrapPayload>
   updateSettings: (update: AppSettingsUpdate) => Promise<BootstrapPayload>
   saveLlmProviderProfile: (input: SaveLlmProviderProfileInput) => Promise<BootstrapPayload>
+  deleteLlmProviderProfile: (profileId: string) => Promise<BootstrapPayload>
   setActiveLlmProviderProfile: (profileId: string) => Promise<BootstrapPayload>
   fetchLlmProviderModels: (input: FetchLlmProviderModelsInput) => Promise<LlmProviderModel[]>
   onMessagesUpsert: (listener: (messages: ChatMessage[]) => void) => () => void

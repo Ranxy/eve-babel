@@ -121,6 +121,7 @@ export function App() {
             onFetchLlmProviderModels={actions.fetchLlmProviderModels}
             onOpenLlmDebugFolder={actions.openLlmDebugFolder}
             onSaveLlmProviderProfile={actions.saveLlmProviderProfile}
+            onDeleteLlmProviderProfile={actions.deleteLlmProviderProfile}
             onSaveSettings={actions.updateSettings}
             onSetActiveLlmProviderProfile={actions.setActiveLlmProviderProfile}
           />

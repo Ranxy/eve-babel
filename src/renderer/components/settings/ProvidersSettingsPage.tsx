@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 
 import type {
   ApiStatus,
@@ -6,7 +6,6 @@ import type {
   LlmProviderDefinition,
   LlmProviderId,
   LlmProviderModel,
-  LlmProviderProfile,
   LlmProviderState,
   SaveLlmProviderProfileInput
 } from '../../../shared/types'
@@ -16,441 +15,302 @@ interface ProvidersSettingsPageProps {
   llmProviderState: LlmProviderState
   forceLlmSetup?: boolean
   onSaveLlmProviderProfile: (input: SaveLlmProviderProfileInput) => void
+  onDeleteLlmProviderProfile: (profileId: string) => void
   onSetActiveLlmProviderProfile: (profileId: string) => void
   onFetchLlmProviderModels: (input: FetchLlmProviderModelsInput) => Promise<LlmProviderModel[]>
 }
 
-export function ProvidersSettingsPage(props: ProvidersSettingsPageProps) {
-  const [searchQuery, setSearchQuery] = useState('')
-  const [selectedProviderId, setSelectedProviderId] = useState<LlmProviderId>(() => props.llmProviderState.providers[0]?.providerId ?? 'openai')
-  const [editingProfileId, setEditingProfileId] = useState<string | null>(() => props.llmProviderState.activeProfileId)
-  const [profileFormState, setProfileFormState] = useState({
-    modelName: '',
-    apiKey: ''
-  })
-  const [availableModels, setAvailableModels] = useState<LlmProviderModel[]>([])
-  const [isLoadingModels, setIsLoadingModels] = useState(false)
-  const [modelLoadError, setModelLoadError] = useState<string | null>(null)
-  const [modelRefreshNonce, setModelRefreshNonce] = useState(0)
-  const searchInputRef = useRef<HTMLInputElement | null>(null)
-  const apiKeyRef = useRef<HTMLInputElement | null>(null)
-  const hasAppliedInitialFocus = useRef(false)
-  const lastModelRequestKeyRef = useRef<string | null>(null)
-
-  const filteredProviders = useMemo(() => {
-    const normalizedQuery = searchQuery.trim().toLowerCase()
-    if (!normalizedQuery) {
-      return props.llmProviderState.providers
-    }
-    return props.llmProviderState.providers.filter((provider) => `${provider.label} ${provider.description}`.toLowerCase().includes(normalizedQuery))
-  }, [props.llmProviderState.providers, searchQuery])
-
-  useEffect(() => {
-    const currentProviderExists = props.llmProviderState.providers.some((provider) => provider.providerId === selectedProviderId)
-    if (!currentProviderExists && props.llmProviderState.providers[0]) {
-      setSelectedProviderId(props.llmProviderState.providers[0].providerId)
-    }
-  }, [props.llmProviderState.providers, selectedProviderId])
-
-  useEffect(() => {
-    if (filteredProviders.length === 0) {
-      return
-    }
-    const isSelectedProviderVisible = filteredProviders.some((provider) => provider.providerId === selectedProviderId)
-    if (!isSelectedProviderVisible) {
-      setSelectedProviderId(filteredProviders[0].providerId)
-    }
-  }, [filteredProviders, selectedProviderId])
-
-  const selectedProvider =
-    props.llmProviderState.providers.find((provider) => provider.providerId === selectedProviderId) ?? filteredProviders[0] ?? null
-  const providerProfiles = props.llmProviderState.profiles.filter((profile) => profile.providerId === selectedProviderId)
-  const activeProviderProfile = providerProfiles.find((profile) => profile.isActive) ?? null
-  const editingProfile = providerProfiles.find((profile) => profile.profileId === editingProfileId) ?? null
-  const canSaveProviderProfile = Boolean(
-    selectedProvider && profileFormState.modelName.trim() && (profileFormState.apiKey.trim() || editingProfile?.hasApiKey)
+function EyeIcon() {
+  return (
+    <svg width="15" height="15" viewBox="0 0 15 15" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M1 7.5C1 7.5 3.5 3 7.5 3C11.5 3 14 7.5 14 7.5C14 7.5 11.5 12 7.5 12C3.5 12 1 7.5 1 7.5Z" />
+      <circle cx="7.5" cy="7.5" r="1.8" />
+    </svg>
   )
-  const activatableProfile = editingProfile ?? providerProfiles[0] ?? null
+}
 
+function EyeOffIcon() {
+  return (
+    <svg width="15" height="15" viewBox="0 0 15 15" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M1 1L14 14M6.5 6.7C6.2 7 6 7.5 6 7.5C6 8.3 6.7 9 7.5 9C8 9 8.5 8.8 8.8 8.5" />
+      <path d="M3.5 4.5C2.2 5.5 1 7.5 1 7.5C1 7.5 3.5 12 7.5 12C9 12 10.3 11.5 11.3 10.8M5.5 3.5C6.1 3.2 6.8 3 7.5 3C11.5 3 14 7.5 14 7.5C14 7.5 13.2 9 11.8 10.2" />
+    </svg>
+  )
+}
+
+function SearchIcon() {
+  return (
+    <svg width="13" height="13" viewBox="0 0 15 15" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
+      <circle cx="6.5" cy="6.5" r="4.5" />
+      <line x1="10" y1="10" x2="14" y2="14" />
+    </svg>
+  )
+}
+
+function getProviderApiKeyLink(provider: LlmProviderDefinition): string | null {
+  if (provider.providerId === 'openai') return 'https://platform.openai.com/api-keys'
+  if (provider.providerId === 'deepseek') return 'https://platform.deepseek.com/api_keys'
+  return null
+}
+
+export function ProvidersSettingsPage(props: ProvidersSettingsPageProps) {
+  const { providers, profiles, activeProfileId } = props.llmProviderState
+
+  const [selectedProviderId, setSelectedProviderId] = useState<LlmProviderId>(
+    () => providers[0]?.providerId ?? 'openai'
+  )
+  const [apiKey, setApiKey] = useState('')
+  const [showApiKey, setShowApiKey] = useState(false)
+  const [fetchedModels, setFetchedModels] = useState<LlmProviderModel[]>([])
+  const [isFetching, setIsFetching] = useState(false)
+  const [fetchError, setFetchError] = useState<string | null>(null)
+  const [modelSearchQuery, setModelSearchQuery] = useState('')
+  const [providerSearch, setProviderSearch] = useState('')
+  const [togglingModelId, setTogglingModelId] = useState<string | null>(null)
+
+  const prevProviderIdRef = useRef(selectedProviderId)
   useEffect(() => {
-    const nextEditingProfileId = resolveEditingProfileId(providerProfiles, editingProfileId)
-    if (nextEditingProfileId !== editingProfileId) {
-      setEditingProfileId(nextEditingProfileId)
+    if (prevProviderIdRef.current !== selectedProviderId) {
+      prevProviderIdRef.current = selectedProviderId
+      setFetchedModels([])
+      setFetchError(null)
+      setModelSearchQuery('')
+      setApiKey('')
     }
-  }, [editingProfileId, providerProfiles])
+  }, [selectedProviderId])
 
-  useEffect(() => {
-    setProfileFormState({
-      modelName: editingProfile?.modelName ?? '',
-      apiKey: ''
-    })
-    setAvailableModels([])
-    setModelLoadError(null)
-    lastModelRequestKeyRef.current = null
-  }, [editingProfile?.profileId, selectedProviderId])
+  const selectedProvider = providers.find((p) => p.providerId === selectedProviderId) ?? providers[0]
+  const providerProfiles = profiles.filter((p) => p.providerId === selectedProviderId)
+  const referenceProfileId = providerProfiles[0]?.profileId
+  const isProviderSelected = activeProfileId ? providerProfiles.some((p) => p.profileId === activeProfileId) : false
 
-  useEffect(() => {
-    if (hasAppliedInitialFocus.current) {
-      return
+  const filteredProviders = providers.filter(
+    (p) => !providerSearch.trim() || p.label.toLowerCase().includes(providerSearch.toLowerCase())
+  )
+
+  const handleFetch = async () => {
+    if (!selectedProvider) return
+    setIsFetching(true)
+    setFetchError(null)
+    try {
+      const models = await props.onFetchLlmProviderModels({
+        providerId: selectedProvider.providerId,
+        profileId: apiKey.trim() ? undefined : referenceProfileId,
+        apiKey: apiKey.trim() || undefined
+      })
+      setFetchedModels(models)
+    } catch (err) {
+      setFetchError(err instanceof Error ? err.message : 'Failed to fetch models')
+    } finally {
+      setIsFetching(false)
     }
-    const target = props.forceLlmSetup ? apiKeyRef.current : searchInputRef.current ?? apiKeyRef.current
-    target?.focus()
-    hasAppliedInitialFocus.current = true
-  }, [props.forceLlmSetup])
+  }
 
-  useEffect(() => {
-    if (!selectedProvider) {
-      setAvailableModels([])
-      setModelLoadError(null)
-      setIsLoadingModels(false)
-      return
-    }
-
-    const trimmedApiKey = profileFormState.apiKey.trim()
-    const hasStoredApiKey = Boolean(editingProfile?.hasApiKey)
-    if (!trimmedApiKey && !hasStoredApiKey) {
-      setAvailableModels([])
-      setModelLoadError(null)
-      setIsLoadingModels(false)
-      lastModelRequestKeyRef.current = null
-      return
-    }
-
-    const requestKey = `${selectedProvider.providerId}::${editingProfile?.profileId ?? 'new'}::${trimmedApiKey || '[stored]'}::${modelRefreshNonce}`
-    if (requestKey === lastModelRequestKeyRef.current) {
-      return
-    }
-
-    const timeoutId = window.setTimeout(() => {
-      lastModelRequestKeyRef.current = requestKey
-      setIsLoadingModels(true)
-      setModelLoadError(null)
-
-      void props
-        .onFetchLlmProviderModels({
+  const handleModelToggle = async (model: LlmProviderModel) => {
+    if (!selectedProvider || togglingModelId) return
+    const existingProfile = providerProfiles.find((p) => p.modelName === model.modelId)
+    setTogglingModelId(model.modelId)
+    try {
+      if (existingProfile) {
+        await props.onDeleteLlmProviderProfile(existingProfile.profileId)
+      } else {
+        const trimmedKey = apiKey.trim()
+        await props.onSaveLlmProviderProfile({
           providerId: selectedProvider.providerId,
-          profileId: editingProfile?.profileId ?? undefined,
-          apiKey: trimmedApiKey || undefined
+          modelName: model.modelId,
+          apiKey: trimmedKey || undefined,
+          copyApiKeyFromProfileId: trimmedKey ? undefined : referenceProfileId
         })
-        .then((models) => {
-          setAvailableModels(models)
-          setProfileFormState((current) => {
-            const nextModelName = chooseModelName(current.modelName, editingProfile?.modelName ?? '', models)
-            return nextModelName === current.modelName ? current : { ...current, modelName: nextModelName }
-          })
-        })
-        .catch((error) => {
-          setAvailableModels([])
-          setModelLoadError(error instanceof Error ? error.message : 'Failed to load provider models')
-        })
-        .finally(() => {
-          setIsLoadingModels(false)
-        })
-    }, 360)
-
-    return () => {
-      window.clearTimeout(timeoutId)
+      }
+    } finally {
+      setTogglingModelId(null)
     }
-  }, [editingProfile?.hasApiKey, editingProfile?.modelName, editingProfile?.profileId, modelRefreshNonce, profileFormState.apiKey, props.onFetchLlmProviderModels, selectedProvider])
+  }
 
-  const mergedModelOptions = mergeModelOptions(availableModels, profileFormState.modelName)
+  // Combine fetched models with already-saved profiles
+  const allModels: LlmProviderModel[] = [
+    ...fetchedModels,
+    ...providerProfiles
+      .filter((p) => !fetchedModels.some((m) => m.modelId === p.modelName))
+      .map((p) => ({ modelId: p.modelName, label: p.modelName, ownedBy: null }))
+  ]
+
+  const filteredModels = allModels.filter(
+    (m) => !modelSearchQuery.trim() || m.modelId.toLowerCase().includes(modelSearchQuery.toLowerCase())
+  )
+
+  // Sort: enabled first, then alphabetical
+  const sortedModels = [...filteredModels].sort((a, b) => {
+    const aOn = providerProfiles.some((p) => p.modelName === a.modelId)
+    const bOn = providerProfiles.some((p) => p.modelName === b.modelId)
+    if (aOn && !bOn) return -1
+    if (!aOn && bOn) return 1
+    return a.modelId.localeCompare(b.modelId)
+  })
+
+  const enabledCount = providerProfiles.length
+  const shownCount = sortedModels.length
+  const apiKeyLink = selectedProvider ? getProviderApiKeyLink(selectedProvider) : null
 
   return (
     <div className="providers-page">
-      {props.forceLlmSetup ? (
-        <div className="settings-note providers-setup-note">
-          <span className="settings-note-label">Setup required</span>
-          <strong>Translation stays paused until one provider profile is active.</strong>
-          <span className="settings-field-hint">Add an API key, wait for model discovery, then save and activate the provider profile.</span>
-        </div>
-      ) : null}
-
-      {/* Toolbar: search + action buttons */}
       <div className="providers-toolbar">
         <label className="providers-search-field">
-          <svg className="providers-search-icon-svg" width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round">
-            <circle cx="6" cy="6" r="4.5" />
-            <line x1="9.5" y1="9.5" x2="12.5" y2="12.5" />
-          </svg>
+          <SearchIcon />
           <input
-            ref={searchInputRef}
-            onChange={(event) => setSearchQuery(event.target.value)}
-            placeholder="Search providers..."
-            value={searchQuery}
+            placeholder="Search providers…"
+            type="search"
+            value={providerSearch}
+            onChange={(e) => setProviderSearch(e.target.value)}
           />
         </label>
-        <button className="ghost-button" disabled title="Custom providers coming soon" type="button">
+        <button className="ghost-button" disabled type="button">
           Add Custom Provider
         </button>
       </div>
 
-      {/* Two-column layout: list + detail */}
       <div className="providers-content">
-        {/* Provider list */}
+        {/* Left panel: provider list */}
         <div className="providers-list-panel">
-          {filteredProviders.length > 0 ? (
-            filteredProviders.map((provider) => {
-              const providerStatus = getProviderStatus(provider.providerId, props.llmProviderState.profiles)
-              return (
-                <button
-                  className={`providers-list-item ${provider.providerId === selectedProviderId ? 'selected' : ''}`}
-                  key={provider.providerId}
-                  onClick={() => setSelectedProviderId(provider.providerId)}
-                  type="button"
-                >
-                  <span className="providers-list-item-icon">{getProviderGlyph(provider)}</span>
-                  <span className="providers-list-item-label">{provider.label}</span>
-                  <span className={`providers-status-dot is-${providerStatus}`} aria-hidden="true" />
-                </button>
-              )
-            })
-          ) : (
-            <div className="empty-state providers-empty-list">
-              <div>
-                <strong>No providers match.</strong>
-                <p className="hero-copy">Try another keyword or clear the search.</p>
-              </div>
-            </div>
-          )}
+          {filteredProviders.map((provider) => {
+            const provProfiles = profiles.filter((p) => p.providerId === provider.providerId)
+            const isActive = activeProfileId ? provProfiles.some((p) => p.profileId === activeProfileId) : false
+            return (
+              <button
+                key={provider.providerId}
+                className={`providers-list-item ${selectedProviderId === provider.providerId ? 'selected' : ''}`}
+                type="button"
+                onClick={() => setSelectedProviderId(provider.providerId)}
+              >
+                <span className="providers-list-item-label">{provider.label}</span>
+                <span className="providers-list-item-meta">
+                  {provProfiles.length > 0 ? (
+                    <span className={`chip ${isActive ? 'chip-ok' : 'chip-neutral'}`}>
+                      {provProfiles.length} model{provProfiles.length !== 1 ? 's' : ''}
+                    </span>
+                  ) : (
+                    <span className="chip chip-neutral">Not configured</span>
+                  )}
+                </span>
+              </button>
+            )
+          })}
         </div>
 
-        {/* Provider detail */}
-        {selectedProvider ? (
+        {/* Right panel: provider detail */}
+        {selectedProvider && (
           <div className="providers-detail">
-            {/* Header: name, badge, description, enable button */}
             <div className="providers-detail-top">
               <div className="providers-heading-row">
-                <h2>{selectedProvider.label}</h2>
-                <span className={`chip ${activeProviderProfile ? 'chip-ok' : 'chip-neutral'}`}>
-                  {activeProviderProfile ? 'Active' : 'Inactive'}
+                <h2 className="providers-detail-title">{selectedProvider.label}</h2>
+                <span className={`chip ${isProviderSelected ? 'chip-ok' : 'chip-neutral'}`}>
+                  {isProviderSelected ? 'Active' : enabledCount > 0 ? `${enabledCount} enabled` : 'Not configured'}
                 </span>
               </div>
-              <p className="hero-copy providers-detail-desc">{selectedProvider.description}</p>
-              <div className="providers-detail-top-actions">
-                <button
-                  className="primary-button"
-                  disabled={!activatableProfile || activeProviderProfile?.profileId === activatableProfile?.profileId}
-                  onClick={() => {
-                    if (activatableProfile) {
-                      props.onSetActiveLlmProviderProfile(activatableProfile.profileId)
-                    }
-                  }}
-                  type="button"
-                >
-                  {activeProviderProfile ? 'Using Provider' : 'Enable Provider'}
-                </button>
+              <p className="providers-detail-desc">{selectedProvider.description}</p>
+            </div>
+
+            <hr className="providers-divider" />
+
+            {/* API Key */}
+            <div className="providers-form-section">
+              <div className="providers-form-section-head">
+                <span className="eyebrow">API Key</span>
+              </div>
+              <div className="providers-api-key-row">
+                <div className="providers-api-key-field">
+                  <input
+                    autoComplete="off"
+                    placeholder={referenceProfileId ? 'Leave blank to use stored key' : 'Paste your API key…'}
+                    spellCheck={false}
+                    type={showApiKey ? 'text' : 'password'}
+                    value={apiKey}
+                    onChange={(e) => setApiKey(e.target.value)}
+                  />
+                  <button
+                    className="providers-eye-btn"
+                    title={showApiKey ? 'Hide key' : 'Show key'}
+                    type="button"
+                    onClick={() => setShowApiKey((v) => !v)}
+                  >
+                    {showApiKey ? <EyeOffIcon /> : <EyeIcon />}
+                  </button>
+                </div>
+                {apiKeyLink && (
+                  <a className="providers-key-link" href={apiKeyLink} rel="noreferrer" target="_blank">
+                    Get API key ↗
+                  </a>
+                )}
               </div>
             </div>
 
             <hr className="providers-divider" />
 
-            {/* Setup form */}
-            <div className="providers-form-section">
+            {/* Models */}
+            <div className="providers-form-section providers-models-section">
               <div className="providers-form-section-head">
-                <div>
-                  <div className="eyebrow">Provider Setup</div>
-                  <p className="providers-form-section-title">
-                    {editingProfile ? buildProfileLabel(selectedProvider.label, editingProfile) : `Add ${selectedProvider.label}`}
-                  </p>
-                </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <span className={`chip ${canSaveProviderProfile ? 'chip-ok' : 'chip-neutral'}`}>
-                    {canSaveProviderProfile ? 'Ready' : 'Needs model and key'}
-                  </span>
-                  {providerProfiles.length > 0 ? (
-                    <button
-                      className="ghost-button"
-                      onClick={() => {
-                        setEditingProfileId(null)
-                        setProfileFormState({ modelName: '', apiKey: '' })
-                        setAvailableModels([])
-                        setModelLoadError(null)
-                        lastModelRequestKeyRef.current = null
-                      }}
-                      type="button"
-                    >
-                      New profile
-                    </button>
-                  ) : null}
-                </div>
-              </div>
-
-              <div className="providers-form-grid">
-                <label className="settings-field">
-                  <span className="settings-field-label">API key</span>
-                  <input
-                    ref={apiKeyRef}
-                    onChange={(event) => {
-                      const nextApiKey = event.target.value
-                      setProfileFormState((current) => ({ ...current, apiKey: nextApiKey }))
-                      setModelLoadError(null)
-                      lastModelRequestKeyRef.current = null
-                    }}
-                    placeholder={editingProfile?.hasApiKey ? 'Leave blank to keep the stored key' : 'Required to load models'}
-                    type="password"
-                    value={profileFormState.apiKey}
-                  />
-                  <span className="settings-field-hint">
-                    {editingProfile?.hasApiKey ? 'Leave this blank to keep the stored key.' : 'The model list loads automatically after a valid key is entered.'}
-                  </span>
-                </label>
-
-                <label className="settings-field">
-                  <span className="settings-field-label">Model</span>
-                  <select
-                    disabled={mergedModelOptions.length === 0}
-                    onChange={(event) => setProfileFormState((current) => ({ ...current, modelName: event.target.value }))}
-                    value={profileFormState.modelName}
-                  >
-                    <option value="">{isLoadingModels ? 'Loading models...' : 'Select a discovered model'}</option>
-                    {mergedModelOptions.map((model) => (
-                      <option key={model.modelId} value={model.modelId}>
-                        {model.label}
-                      </option>
-                    ))}
-                  </select>
-                  <span className="settings-field-hint">
-                    {modelLoadError
-                      ? modelLoadError
-                      : isLoadingModels
-                        ? 'Querying the provider for available models.'
-                        : mergedModelOptions.length > 0
-                          ? `${mergedModelOptions.length} models available.`
-                          : 'Enter an API key to load models.'}
-                  </span>
-                </label>
-              </div>
-
-              <div className="settings-action-row">
-                <button
-                  className="ghost-button"
-                  disabled={isLoadingModels}
-                  onClick={() => {
-                    lastModelRequestKeyRef.current = null
-                    setModelLoadError(null)
-                    setAvailableModels([])
-                    setModelRefreshNonce((current) => current + 1)
-                  }}
-                  type="button"
-                >
-                  Refresh models
-                </button>
-                <button
-                  className="primary-button"
-                  disabled={!canSaveProviderProfile}
-                  onClick={() => {
-                    props.onSaveLlmProviderProfile({
-                      profileId: editingProfile?.profileId ?? undefined,
-                      providerId: selectedProvider.providerId,
-                      modelName: profileFormState.modelName.trim(),
-                      apiKey: profileFormState.apiKey.trim() || undefined,
-                      activate: true
-                    })
-                    setProfileFormState((current) => ({ ...current, apiKey: '' }))
-                  }}
-                  type="button"
-                >
-                  {editingProfile ? 'Save and activate' : 'Create and activate'}
+                <span className="eyebrow">Models</span>
+                <button className="ghost-button" disabled={isFetching} type="button" onClick={handleFetch}>
+                  {isFetching ? 'Fetching…' : 'Fetch models'}
                 </button>
               </div>
-            </div>
 
-            {/* Saved profiles */}
-            {providerProfiles.length > 0 ? (
-              <>
-                <hr className="providers-divider" />
-                <div className="providers-profiles-section">
-                  <div className="eyebrow" style={{ marginBottom: 8 }}>Saved Profiles</div>
-                  <div className="providers-profile-list">
-                    {providerProfiles.map((profile) => (
-                      <article className={`providers-profile-row ${profile.isActive ? 'active' : ''}`} key={profile.profileId}>
-                        <div className="providers-profile-row-copy">
-                          <strong>{buildProfileLabel(selectedProvider.label, profile)}</strong>
-                          <span>
-                            {profile.hasApiKey ? 'API key stored' : 'API key missing'} · Updated {formatTimestamp(profile.updatedAt)}
-                          </span>
-                        </div>
-                        <div className="providers-profile-row-actions">
-                          {profile.isActive ? <span className="chip chip-ok">active</span> : null}
-                          <button
-                            className="ghost-button"
-                            disabled={profile.isActive}
-                            onClick={() => props.onSetActiveLlmProviderProfile(profile.profileId)}
-                            type="button"
-                          >
-                            Use
-                          </button>
-                          <button className="ghost-button" onClick={() => setEditingProfileId(profile.profileId)} type="button">
-                            Edit
-                          </button>
-                        </div>
-                      </article>
-                    ))}
+              {fetchError && <div className="providers-fetch-error">{fetchError}</div>}
+
+              {sortedModels.length > 0 && (
+                <>
+                  <label className="providers-search-field providers-model-search">
+                    <SearchIcon />
+                    <input
+                      placeholder="Search models…"
+                      type="search"
+                      value={modelSearchQuery}
+                      onChange={(e) => setModelSearchQuery(e.target.value)}
+                    />
+                  </label>
+                  <div className="providers-model-count">
+                    Showing {shownCount} model{shownCount !== 1 ? 's' : ''} · {enabledCount} enabled
                   </div>
+                  <div className="providers-model-list">
+                    {sortedModels.map((model) => {
+                      const existingProfile = providerProfiles.find((p) => p.modelName === model.modelId)
+                      const isEnabled = Boolean(existingProfile)
+                      const isToggling = togglingModelId === model.modelId
+                      return (
+                        <div className="providers-model-row" key={model.modelId}>
+                          <div className="providers-model-info">
+                            <span className="providers-model-name">{model.modelId}</span>
+                            {model.ownedBy && (
+                              <span className="providers-model-owned">{model.ownedBy}</span>
+                            )}
+                          </div>
+                          <label className={`toggle-switch ${isToggling ? 'toggle-switch-busy' : ''}`}>
+                            <input
+                              checked={isEnabled}
+                              disabled={isToggling}
+                              type="checkbox"
+                              onChange={() => { void handleModelToggle(model) }}
+                            />
+                            <span className="toggle-switch-track" />
+                          </label>
+                        </div>
+                      )
+                    })}
+                  </div>
+                </>
+              )}
+
+              {!isFetching && sortedModels.length === 0 && (
+                <div className="providers-empty-models">
+                  {referenceProfileId
+                    ? 'Click "Fetch models" to load available models.'
+                    : 'Enter an API key and click "Fetch models" to see available models.'}
                 </div>
-              </>
-            ) : (
-              <div className="empty-state providers-empty-profiles">
-                <div>
-                  <strong>Create the first {selectedProvider.label} profile.</strong>
-                  <p className="hero-copy">Enter an API key and choose one of the discovered models.</p>
-                </div>
-              </div>
-            )}
+              )}
+            </div>
           </div>
-        ) : null}
+        )}
       </div>
     </div>
   )
-}
-
-function resolveEditingProfileId(profiles: LlmProviderProfile[], currentProfileId: string | null): string | null {
-  if (currentProfileId && profiles.some((profile) => profile.profileId === currentProfileId)) {
-    return currentProfileId
-  }
-  return profiles.find((profile) => profile.isActive)?.profileId ?? profiles[0]?.profileId ?? null
-}
-
-function chooseModelName(currentModelName: string, profileModelName: string, models: LlmProviderModel[]): string {
-  if (currentModelName && models.some((model) => model.modelId === currentModelName)) {
-    return currentModelName
-  }
-  if (profileModelName && models.some((model) => model.modelId === profileModelName)) {
-    return profileModelName
-  }
-  return models[0]?.modelId ?? currentModelName
-}
-
-function mergeModelOptions(models: LlmProviderModel[], currentModelName: string): LlmProviderModel[] {
-  const map = new Map(models.map((model) => [model.modelId, model]))
-  if (currentModelName && !map.has(currentModelName)) {
-    map.set(currentModelName, {
-      modelId: currentModelName,
-      label: `${currentModelName} (current)`,
-      ownedBy: null
-    })
-  }
-  return Array.from(map.values())
-}
-
-function getProviderStatus(providerId: LlmProviderId, profiles: LlmProviderProfile[]): 'active' | 'ready' | 'empty' {
-  const providerProfiles = profiles.filter((profile) => profile.providerId === providerId)
-  if (providerProfiles.some((profile) => profile.isActive)) {
-    return 'active'
-  }
-  return providerProfiles.length > 0 ? 'ready' : 'empty'
-}
-
-function buildProfileLabel(providerLabel: string, profile: LlmProviderProfile): string {
-  return `${providerLabel} / ${profile.modelName}`
-}
-
-function formatTimestamp(value: string): string {
-  const parsed = new Date(value)
-  return Number.isNaN(parsed.getTime()) ? value : parsed.toLocaleString()
-}
-
-function getProviderGlyph(provider: LlmProviderDefinition): string {
-  const normalized = provider.label.replace(/[^A-Za-z0-9]/g, '')
-  return normalized.slice(0, 2).toUpperCase() || 'AI'
 }
