@@ -1,6 +1,16 @@
 import { dialog, ipcMain } from 'electron'
 
-import type { AppSettingsUpdate, BootstrapPayload, ChannelMessagePage, ChatMessage, ChannelSummary, MessagePageCursor } from '../../shared/types'
+import type {
+  AppSettingsUpdate,
+  BootstrapPayload,
+  ChannelMessagePage,
+  ChatMessage,
+  ChannelSummary,
+  FetchLlmProviderModelsInput,
+  LlmProviderModel,
+  MessagePageCursor,
+  SaveLlmProviderProfileInput
+} from '../../shared/types'
 
 export interface IpcController {
   getBootstrapData: () => Promise<BootstrapPayload>
@@ -14,6 +24,9 @@ export interface IpcController {
   setChannelEnabled: (channelName: string, enabled: boolean) => Promise<BootstrapPayload>
   setChannelPinned: (channelName: string, pinned: boolean) => Promise<BootstrapPayload>
   updateSettings: (update: AppSettingsUpdate) => Promise<BootstrapPayload>
+  saveLlmProviderProfile: (input: SaveLlmProviderProfileInput) => Promise<BootstrapPayload>
+  setActiveLlmProviderProfile: (profileId: string) => Promise<BootstrapPayload>
+  fetchLlmProviderModels: (input: FetchLlmProviderModelsInput) => Promise<LlmProviderModel[]>
 }
 
 export function registerIpcRouter(controller: IpcController): void {
@@ -34,6 +47,15 @@ export function registerIpcRouter(controller: IpcController): void {
     return controller.setChannelPinned(channelName, pinned)
   })
   ipcMain.handle('app:updateSettings', (_event, update: AppSettingsUpdate) => controller.updateSettings(update))
+  ipcMain.handle('app:saveLlmProviderProfile', (_event, input: SaveLlmProviderProfileInput) => {
+    return controller.saveLlmProviderProfile(input)
+  })
+  ipcMain.handle('app:setActiveLlmProviderProfile', (_event, profileId: string) => {
+    return controller.setActiveLlmProviderProfile(profileId)
+  })
+  ipcMain.handle('app:fetchLlmProviderModels', (_event, input: FetchLlmProviderModelsInput) => {
+    return controller.fetchLlmProviderModels(input)
+  })
   ipcMain.handle('app:chooseLogDirectory', async () => {
     const result = await dialog.showOpenDialog({
       properties: ['openDirectory']

@@ -11,6 +11,7 @@ const DEFAULT_CONFIG: AppConfig = {
   llmDebugEnabled: false,
   targetLanguage: DEFAULT_TARGET_LANGUAGE,
   translationPrompt: DEFAULT_TRANSLATION_PROMPT,
+  activeProviderId: null,
   apiBaseUrl: '',
   modelName: '',
   debounceMs: 350,

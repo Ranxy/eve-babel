@@ -13,6 +13,7 @@ import {
   type ChatMessage,
   type ChannelSummary,
   type ChatSessionFile,
+  type FetchLlmProviderModelsInput,
   type MessagePageCursor
 } from '../shared/types'
 import { registerIpcRouter, emitChannels, emitMessages, emitStatus } from './ipc/ipcRouter'
@@ -26,7 +27,8 @@ import { EvePathResolver } from './services/evePathResolver'
 import { selectHistoryMessagesForTranslation } from './services/historyTranslationSelector'
 import { LlmDebugLogger } from './services/llmDebugLogger'
 import { LlmClient } from './services/llmClient'
-import { LlmConfigStore, type LlmConfigRecord } from './services/llmConfigStore'
+import { LlmConfigStore, type LlmResolvedConfig } from './services/llmConfigStore'
+import { fetchBuiltinProviderModels, getBuiltinLlmProviders } from './services/llmProviderCatalog'
 import { MessageRepository } from './services/messageRepository'
 import { TranslationQueue } from './services/translationQueue'
 import { WindowStateStore, type WindowKind, type WindowStateSnapshot } from './services/windowStateStore'
@@ -83,6 +85,7 @@ class EveBabelApp {
     llmDebugEnabled: false,
     targetLanguage: DEFAULT_TARGET_LANGUAGE,
     translationPrompt: DEFAULT_TRANSLATION_PROMPT,
+    activeProviderId: null,
     apiBaseUrl: '',
     modelName: '',
     debounceMs: 350,
@@ -93,7 +96,7 @@ class EveBabelApp {
     const persistedConfig = await this.configStore.load()
     const llmConfig = await this.llmConfigStore.load()
     await this.windowStateStore.load()
-    this.config = this.composeRuntimeConfig(persistedConfig, llmConfig)
+    this.config = this.composeRuntimeConfig(persistedConfig, llmConfig.resolvedConfig)
     await this.messageRepository.load()
     await this.translationQueue.refreshConfiguration(this.config)
     await this.refreshScan()
@@ -178,6 +181,7 @@ class EveBabelApp {
     return {
       directoryStatus: this.pathResolver.resolveDirectory(this.config.logDirectory),
       config: this.config,
+      llmProviderState: this.buildLlmProviderState(),
       characters: this.characterRegistry.getCharacters(),
       channels: this.channelRegistry.getChannels(selectedCharacterId),
       recentMessages: this.messageRepository.getRecentMessages(selectedCharacterId),
@@ -298,13 +302,8 @@ class EveBabelApp {
 
   async updateSettings(update: AppSettingsUpdate): Promise<BootstrapPayload> {
     const nextAppConfig = await this.configStore.update(this.extractNonLlmPatch(update.config))
-    const nextLlmConfig = await this.llmConfigStore.update({
-      apiBaseUrl: update.config.apiBaseUrl,
-      modelName: update.config.modelName,
-      apiKey: update.apiKey
-    })
 
-    this.config = this.composeRuntimeConfig(nextAppConfig, nextLlmConfig)
+    this.config = this.composeRuntimeConfig(nextAppConfig, this.llmConfigStore.getActiveResolvedConfig())
     this.channelRegistry.setChannels(this.scanIndex.channelsByCharacter, this.config.enabledChannels, this.config.pinnedChannels)
     await this.translationQueue.refreshConfiguration(this.config)
 
@@ -314,6 +313,59 @@ class EveBabelApp {
 
     this.publishStatus()
     return this.getBootstrapData()
+  }
+
+  async saveLlmProviderProfile(input: {
+    profileId?: string
+    providerId: 'openai'
+    modelName: string
+    apiKey?: string
+    activate?: boolean
+  }): Promise<BootstrapPayload> {
+    const nextSnapshot = await this.llmConfigStore.saveProfile(input)
+    this.config = this.composeRuntimeConfig(this.configStore.getConfig(), nextSnapshot.resolvedConfig)
+    await this.translationQueue.refreshConfiguration(this.config)
+
+    if (this.translationQueue.getStatus().configured) {
+      await this.enqueueHistoryTranslationsForEnabledChannels(this.characterRegistry.getSelectedCharacterId())
+    }
+
+    this.publishStatus()
+    return this.getBootstrapData()
+  }
+
+  async setActiveLlmProviderProfile(profileId: string): Promise<BootstrapPayload> {
+    const nextSnapshot = await this.llmConfigStore.setActiveProfile(profileId)
+    this.config = this.composeRuntimeConfig(this.configStore.getConfig(), nextSnapshot.resolvedConfig)
+    await this.translationQueue.refreshConfiguration(this.config)
+
+    if (this.translationQueue.getStatus().configured) {
+      await this.enqueueHistoryTranslationsForEnabledChannels(this.characterRegistry.getSelectedCharacterId())
+    }
+
+    this.publishStatus()
+    return this.getBootstrapData()
+  }
+
+  async fetchLlmProviderModels(input: FetchLlmProviderModelsInput) {
+    const apiKey = input.apiKey?.trim() || (input.profileId ? await this.llmConfigStore.getApiKeyForProfile(input.profileId) : null)
+
+    if (!apiKey) {
+      throw new Error('API key is required before loading provider models.')
+    }
+
+    let apiBaseUrl = input.apiBaseUrl
+    if (!apiBaseUrl && input.profileId) {
+      const snapshot = this.llmConfigStore.getSnapshot()
+      const storedProfile = snapshot.profiles.find((p) => p.profileId === input.profileId)
+      apiBaseUrl = storedProfile?.apiBaseUrl
+    }
+
+    return fetchBuiltinProviderModels({
+      ...input,
+      apiKey,
+      apiBaseUrl
+    })
   }
 
   private async startCharacterSession(characterId: string): Promise<void> {
@@ -391,25 +443,37 @@ class EveBabelApp {
     return (this.config.enabledChannels[characterId] ?? []).includes(channelName)
   }
 
-  private composeRuntimeConfig(config: AppConfig, llmConfig: LlmConfigRecord): AppConfig {
+  private composeRuntimeConfig(config: AppConfig, llmConfig: LlmResolvedConfig | null): AppConfig {
     return {
       ...config,
-      apiBaseUrl: llmConfig.apiBaseUrl,
-      modelName: llmConfig.modelName
+      activeProviderId: llmConfig?.providerId ?? null,
+      apiBaseUrl: llmConfig?.apiBaseUrl ?? '',
+      modelName: llmConfig?.modelName ?? ''
     }
   }
 
   private mergeAppConfig(config: AppConfig): AppConfig {
     return {
       ...config,
+      activeProviderId: this.config.activeProviderId,
       apiBaseUrl: this.config.apiBaseUrl,
       modelName: this.config.modelName
     }
   }
 
   private extractNonLlmPatch(config: Partial<AppConfig>): Partial<AppConfig> {
-    const { apiBaseUrl: _apiBaseUrl, modelName: _modelName, ...rest } = config
+    const { activeProviderId: _activeProviderId, apiBaseUrl: _apiBaseUrl, modelName: _modelName, ...rest } = config
     return rest
+  }
+
+  private buildLlmProviderState() {
+    const snapshot = this.llmConfigStore.getSnapshot()
+
+    return {
+      providers: getBuiltinLlmProviders(),
+      profiles: snapshot.profiles,
+      activeProfileId: snapshot.activeProfileId
+    }
   }
 
   private async enqueueEligibleTranslations(messages: ChatMessage[]): Promise<void> {
@@ -707,7 +771,10 @@ if (hasSingleInstanceLock) {
       selectCharacter: (characterId) => eveBabelApp.selectCharacter(characterId),
       setChannelEnabled: (channelName, enabled) => eveBabelApp.setChannelEnabled(channelName, enabled),
       setChannelPinned: (channelName, pinned) => eveBabelApp.setChannelPinned(channelName, pinned),
-      updateSettings: (update) => eveBabelApp.updateSettings(update)
+      updateSettings: (update) => eveBabelApp.updateSettings(update),
+      saveLlmProviderProfile: (input) => eveBabelApp.saveLlmProviderProfile(input),
+      setActiveLlmProviderProfile: (profileId) => eveBabelApp.setActiveLlmProviderProfile(profileId),
+      fetchLlmProviderModels: (input) => eveBabelApp.fetchLlmProviderModels(input)
     })
     nativeTheme.on('updated', () => {
       eveBabelApp.refreshNativeTheme()

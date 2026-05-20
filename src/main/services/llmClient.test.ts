@@ -11,6 +11,7 @@ const baseConfig: AppConfig = {
   llmDebugEnabled: false,
   targetLanguage: 'zh-CN',
   translationPrompt: 'Translate into {{targetLanguage}}.',
+  activeProviderId: 'openai',
   apiBaseUrl: 'https://example.com/v1',
   modelName: 'test-model',
   debounceMs: 0,

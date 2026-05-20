@@ -19,6 +19,14 @@ export const DEFAULT_TARGET_LANGUAGE: TargetLanguage = 'zh-CN'
 export const DEFAULT_TRANSLATION_PROMPT =
   'Translate incoming EVE Online chat messages into {{targetLanguage}}. Preserve EVE-specific terms where appropriate. Return translation only.'
 
+export const SUPPORTED_LLM_PROVIDER_IDS = ['openai', 'deepseek'] as const
+
+export type LlmProviderId = (typeof SUPPORTED_LLM_PROVIDER_IDS)[number]
+
+export function isLlmProviderId(value: string): value is LlmProviderId {
+  return SUPPORTED_LLM_PROVIDER_IDS.includes(value as LlmProviderId)
+}
+
 export function isTargetLanguage(value: string): value is TargetLanguage {
   return TARGET_LANGUAGE_OPTIONS.some((option) => option.value === value)
 }
@@ -93,6 +101,36 @@ export interface TranslationJob {
   finishedAt: string | null
 }
 
+export interface LlmProviderDefinition {
+  providerId: LlmProviderId
+  label: string
+  description: string
+  defaultApiBaseUrl: string
+}
+
+export interface LlmProviderModel {
+  modelId: string
+  label: string
+  ownedBy: string | null
+}
+
+export interface LlmProviderProfile {
+  profileId: string
+  providerId: LlmProviderId
+  apiBaseUrl: string
+  modelName: string
+  hasApiKey: boolean
+  createdAt: string
+  updatedAt: string
+  isActive: boolean
+}
+
+export interface LlmProviderState {
+  providers: LlmProviderDefinition[]
+  profiles: LlmProviderProfile[]
+  activeProfileId: string | null
+}
+
 export interface AppConfig {
   logDirectory: string | null
   selectedCharacterId: string | null
@@ -101,6 +139,7 @@ export interface AppConfig {
   llmDebugEnabled: boolean
   targetLanguage: TargetLanguage
   translationPrompt: string
+  activeProviderId: LlmProviderId | null
   apiBaseUrl: string
   modelName: string
   debounceMs: number
@@ -133,6 +172,7 @@ export interface ApiStatus {
 export interface BootstrapPayload {
   directoryStatus: DirectoryStatus
   config: AppConfig
+  llmProviderState: LlmProviderState
   characters: CharacterSummary[]
   channels: ChannelSummary[]
   recentMessages: ChatMessage[]
@@ -142,7 +182,21 @@ export interface BootstrapPayload {
 
 export interface AppSettingsUpdate {
   config: Partial<AppConfig>
+}
+
+export interface SaveLlmProviderProfileInput {
+  profileId?: string
+  providerId: LlmProviderId
+  modelName: string
   apiKey?: string
+  activate?: boolean
+}
+
+export interface FetchLlmProviderModelsInput {
+  providerId: LlmProviderId
+  profileId?: string
+  apiKey?: string
+  apiBaseUrl?: string
 }
 
 export interface RendererEvents {
@@ -164,6 +218,9 @@ export interface EveBabelApi {
   setChannelEnabled: (channelName: string, enabled: boolean) => Promise<BootstrapPayload>
   setChannelPinned: (channelName: string, pinned: boolean) => Promise<BootstrapPayload>
   updateSettings: (update: AppSettingsUpdate) => Promise<BootstrapPayload>
+  saveLlmProviderProfile: (input: SaveLlmProviderProfileInput) => Promise<BootstrapPayload>
+  setActiveLlmProviderProfile: (profileId: string) => Promise<BootstrapPayload>
+  fetchLlmProviderModels: (input: FetchLlmProviderModelsInput) => Promise<LlmProviderModel[]>
   onMessagesUpsert: (listener: (messages: ChatMessage[]) => void) => () => void
   onChannelsUpdate: (listener: (channels: ChannelSummary[]) => void) => () => void
   onStatusUpdate: (

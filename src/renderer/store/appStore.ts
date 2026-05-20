@@ -7,7 +7,9 @@ import {
   type BootstrapPayload,
   type ChannelMessagePage,
   type ChatMessage,
-  type ChannelSummary
+  type ChannelSummary,
+  type FetchLlmProviderModelsInput,
+  type SaveLlmProviderProfileInput
 } from '../../shared/types'
 
 const DEFAULT_CHANNEL_PAGE_SIZE = 10
@@ -40,10 +42,16 @@ const emptyState: AppStoreState = {
     llmDebugEnabled: false,
     targetLanguage: DEFAULT_TARGET_LANGUAGE,
     translationPrompt: DEFAULT_TRANSLATION_PROMPT,
-    apiBaseUrl: 'https://api.openai.com/v1',
-    modelName: 'gpt-4.1-mini',
+    activeProviderId: null,
+    apiBaseUrl: '',
+    modelName: '',
     debounceMs: 350,
     maxQueueSize: 100
+  },
+  llmProviderState: {
+    providers: [],
+    profiles: [],
+    activeProfileId: null
   },
   characters: [],
   channels: [],
@@ -304,6 +312,9 @@ export function useAppStore() {
       setChannelEnabled: (channelName: string, enabled: boolean) => runAction(window.eveBabel.setChannelEnabled(channelName, enabled)),
       setChannelPinned: (channelName: string, pinned: boolean) => runAction(window.eveBabel.setChannelPinned(channelName, pinned)),
       updateSettings: (update: AppSettingsUpdate) => runAction(window.eveBabel.updateSettings(update)),
+      saveLlmProviderProfile: (input: SaveLlmProviderProfileInput) => runAction(window.eveBabel.saveLlmProviderProfile(input)),
+      setActiveLlmProviderProfile: (profileId: string) => runAction(window.eveBabel.setActiveLlmProviderProfile(profileId)),
+      fetchLlmProviderModels: (input: FetchLlmProviderModelsInput) => window.eveBabel.fetchLlmProviderModels(input),
       loadChannelMessages,
       loadOlderChannelMessages
     }

@@ -11,6 +11,7 @@ const baseConfig: AppConfig = {
   llmDebugEnabled: false,
   targetLanguage: 'zh-CN',
   translationPrompt: 'Translate into {{targetLanguage}}.',
+  activeProviderId: 'openai',
   apiBaseUrl: 'https://example.com/v1',
   modelName: 'test-model',
   debounceMs: 20,
@@ -104,7 +105,7 @@ describe('TranslationQueue', () => {
     }
     const queue = new TranslationQueue(
       llmClient as never,
-      { getApiKey: vi.fn().mockResolvedValue('token') } as never,
+      { getActiveApiKey: vi.fn().mockResolvedValue('token') } as never,
       repository as never,
       {
         onMessageUpdated: vi.fn(),
@@ -159,7 +160,7 @@ describe('TranslationQueue', () => {
     }
     const queue = new TranslationQueue(
       llmClient as never,
-      { getApiKey: vi.fn().mockResolvedValue('token') } as never,
+      { getActiveApiKey: vi.fn().mockResolvedValue('token') } as never,
       repository as never,
       {
         onMessageUpdated: vi.fn(),

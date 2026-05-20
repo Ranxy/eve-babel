@@ -37,7 +37,7 @@ export class TranslationQueue {
   }
 
   async refreshConfiguration(config: AppConfig): Promise<void> {
-    const apiKey = await this.llmConfigStore.getApiKey()
+    const apiKey = await this.llmConfigStore.getActiveApiKey()
     this.apiStatus = {
       ...this.apiStatus,
       configured: Boolean(apiKey && config.apiBaseUrl && config.modelName),
@@ -77,7 +77,7 @@ export class TranslationQueue {
       messageText: message.messageText,
       timestamp: message.timestamp,
       targetLanguage: config.targetLanguage,
-      provider: 'openai-compatible',
+      provider: config.activeProviderId ?? 'openai',
       model: config.modelName,
       retryCount: 0,
       queuedAt: new Date().toISOString(),
@@ -159,7 +159,7 @@ export class TranslationQueue {
     this.publishStatus({ configured: this.apiStatus.configured })
 
     try {
-      const apiKey = await this.llmConfigStore.getApiKey()
+      const apiKey = await this.llmConfigStore.getActiveApiKey()
       if (!apiKey) {
         throw new Error('API key is not configured.')
       }

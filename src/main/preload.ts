@@ -21,6 +21,9 @@ const api: EveBabelApi = {
     return ipcRenderer.invoke('app:setChannelPinned', channelName, pinned)
   },
   updateSettings: (update: AppSettingsUpdate) => ipcRenderer.invoke('app:updateSettings', update),
+  saveLlmProviderProfile: (input) => ipcRenderer.invoke('app:saveLlmProviderProfile', input),
+  setActiveLlmProviderProfile: (profileId: string) => ipcRenderer.invoke('app:setActiveLlmProviderProfile', profileId),
+  fetchLlmProviderModels: (input) => ipcRenderer.invoke('app:fetchLlmProviderModels', input),
   onMessagesUpsert: (listener: (messages: ChatMessage[]) => void) => {
     const subscription = (_event: Electron.IpcRendererEvent, messages: ChatMessage[]) => listener(messages)
     ipcRenderer.on('messages:upsert', subscription)

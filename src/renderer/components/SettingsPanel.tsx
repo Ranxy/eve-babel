@@ -1,224 +1,119 @@
-import { useEffect, useRef, useState } from 'react'
+import { type ReactNode, useEffect, useState } from 'react'
 
-import { TARGET_LANGUAGE_OPTIONS, type ApiStatus, type AppConfig } from '../../shared/types'
+import type {
+  ApiStatus,
+  AppConfig,
+  AppSettingsUpdate,
+  FetchLlmProviderModelsInput,
+  LlmProviderModel,
+  LlmProviderState,
+  SaveLlmProviderProfileInput
+} from '../../shared/types'
+import { GeneralSettingsPage } from './settings/GeneralSettingsPage'
+import { ProvidersSettingsPage } from './settings/ProvidersSettingsPage'
+
+type SettingsSection = 'general' | 'providers'
 
 interface SettingsPanelProps {
   config: AppConfig
   apiStatus: ApiStatus
+  llmProviderState: LlmProviderState
   forceLlmSetup?: boolean
   onCancelQueuedTranslations: () => void
   onOpenLlmDebugFolder: () => void
-  onSave: (update: { config: Partial<AppConfig>; apiKey?: string }) => void
+  onSaveSettings: (update: AppSettingsUpdate) => void
+  onSaveLlmProviderProfile: (input: SaveLlmProviderProfileInput) => void
+  onSetActiveLlmProviderProfile: (profileId: string) => void
+  onFetchLlmProviderModels: (input: FetchLlmProviderModelsInput) => Promise<LlmProviderModel[]>
 }
+
+const SETTINGS_SECTIONS: Array<{ id: SettingsSection; label: string; icon: ReactNode }> = [
+  {
+    id: 'general',
+    label: 'General',
+    icon: (
+      <svg width="15" height="15" viewBox="0 0 15 15" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round">
+        <line x1="2" y1="5" x2="13" y2="5" />
+        <circle cx="10" cy="5" r="1.6" fill="currentColor" stroke="none" />
+        <line x1="2" y1="10" x2="13" y2="10" />
+        <circle cx="5" cy="10" r="1.6" fill="currentColor" stroke="none" />
+      </svg>
+    )
+  },
+  {
+    id: 'providers',
+    label: 'Providers',
+    icon: (
+      <svg width="15" height="15" viewBox="0 0 15 15" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round">
+        <rect x="1" y="1" width="5.5" height="5.5" rx="1.2" />
+        <rect x="8.5" y="1" width="5.5" height="5.5" rx="1.2" />
+        <rect x="1" y="8.5" width="5.5" height="5.5" rx="1.2" />
+        <rect x="8.5" y="8.5" width="5.5" height="5.5" rx="1.2" />
+      </svg>
+    )
+  }
+]
 
 export function SettingsPanel(props: SettingsPanelProps) {
-  const [formState, setFormState] = useState(() => createFormState(props.config))
-  const targetLanguageRef = useRef<HTMLSelectElement | null>(null)
-  const apiBaseUrlRef = useRef<HTMLInputElement | null>(null)
-  const hasAppliedInitialFocus = useRef(false)
+  const [selectedSection, setSelectedSection] = useState<SettingsSection>('providers')
 
   useEffect(() => {
-    setFormState((current) => ({
-      ...createFormState(props.config),
-      apiKey: current.apiKey
-    }))
-  }, [props.config])
-
-  const requiresLlmFields = props.forceLlmSetup === true
-  const canSubmitLlmConfig =
-    formState.apiBaseUrl.trim().length > 0 && formState.modelName.trim().length > 0 && formState.apiKey.trim().length > 0
-
-  useEffect(() => {
-    if (hasAppliedInitialFocus.current) {
-      return
+    if (props.forceLlmSetup) {
+      setSelectedSection('providers')
     }
-
-    const target = requiresLlmFields ? apiBaseUrlRef.current : targetLanguageRef.current ?? apiBaseUrlRef.current
-    target?.focus()
-    hasAppliedInitialFocus.current = true
-  }, [requiresLlmFields])
+  }, [props.forceLlmSetup])
 
   return (
-    <section className={`panel settings-panel ${props.forceLlmSetup ? 'panel-hero' : ''}`}>
-      <div className="panel-header">
-        <div>
-          <div className="eyebrow">Settings</div>
-          <h2>{props.forceLlmSetup ? 'Configure translation provider' : 'Translation pipeline'}</h2>
-        </div>
-        <span className={`chip ${props.apiStatus.configured ? 'chip-ok' : 'chip-warn'}`}>
-          {props.apiStatus.configured ? 'configured' : 'not configured'}
-        </span>
-      </div>
-      {props.forceLlmSetup ? (
-        <p className="hero-copy">
-          Fill in a single OpenAI-compatible provider profile before the app starts translating chat. The values are stored in the local SQLite configuration database.
-        </p>
-      ) : null}
-      <div className="settings-note-grid">
-        <div className="settings-note">
-          <span className="settings-note-label">Queue snapshot</span>
-          <strong>{props.apiStatus.queueLength} waiting</strong>
-          <span className="settings-field-hint">{props.apiStatus.activeJobs} active batches</span>
-        </div>
-        <div className="settings-note">
-          <span className="settings-note-label">Provider state</span>
-          <strong>{props.apiStatus.configured ? 'Configured' : 'Needs credentials'}</strong>
-        </div>
-      </div>
-      <div className="settings-grid">
-        <label className="settings-field">
-          <span className="settings-field-label">Target language</span>
-          <select
-            ref={targetLanguageRef}
-            value={formState.targetLanguage}
-            onChange={(event) => setFormState((current) => ({ ...current, targetLanguage: event.target.value as AppConfig['targetLanguage'] }))}
-          >
-            {TARGET_LANGUAGE_OPTIONS.map((option) => (
-              <option key={option.value} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </select>
-          <span className="settings-field-hint">Choose the language used for every translated chat line.</span>
-        </label>
-        <label className="settings-field">
-          <span className="settings-field-label">API base URL</span>
-          <input
-            ref={apiBaseUrlRef}
-            value={formState.apiBaseUrl}
-            onChange={(event) => setFormState((current) => ({ ...current, apiBaseUrl: event.target.value }))}
-            placeholder="https://api.openai.com/v1"
-          />
-          <span className="settings-field-hint">Point this at any OpenAI-compatible endpoint.</span>
-        </label>
-        <label className="settings-field">
-          <span className="settings-field-label">Model name</span>
-          <input
-            value={formState.modelName}
-            onChange={(event) => setFormState((current) => ({ ...current, modelName: event.target.value }))}
-            placeholder="gpt-4.1-mini"
-          />
-          <span className="settings-field-hint">Keep it aligned with the provider capabilities.</span>
-        </label>
-        {!requiresLlmFields ? (
-          <label className="settings-field">
-            <span className="settings-field-label">Debounce ms</span>
-            <input
-              type="number"
-              value={formState.debounceMs}
-              onChange={(event) => setFormState((current) => ({ ...current, debounceMs: event.target.value }))}
-            />
-            <span className="settings-field-hint">Delay before a new batch is queued for translation.</span>
-          </label>
-        ) : null}
-        {!requiresLlmFields ? (
-          <label className="settings-field">
-            <span className="settings-field-label">Max queue size</span>
-            <input
-              type="number"
-              value={formState.maxQueueSize}
-              onChange={(event) => setFormState((current) => ({ ...current, maxQueueSize: event.target.value }))}
-            />
-            <span className="settings-field-hint">Prevents backlog growth when many channels are active.</span>
-          </label>
-        ) : null}
-        <label className="settings-field settings-toggle-field">
-          <span className="settings-field-label">Enable LLM debugger</span>
-          <span className="settings-field-hint">
-            Save every LLM request payload and raw response into separate JSON files under the app data `llm-debug` folder.
-          </span>
-          <div className="settings-checkbox-row">
-            <input
-              checked={formState.llmDebugEnabled}
-              onChange={(event) => setFormState((current) => ({ ...current, llmDebugEnabled: event.target.checked }))}
-              type="checkbox"
-            />
-            <span>{formState.llmDebugEnabled ? 'Debugger enabled' : 'Debugger disabled'}</span>
-          </div>
-        </label>
-        <label className="settings-field settings-field-wide">
-          <span className="settings-field-label">Translation prompt</span>
-          <textarea
-            rows={5}
-            value={formState.translationPrompt}
-            onChange={(event) => setFormState((current) => ({ ...current, translationPrompt: event.target.value }))}
-            placeholder="Use {{targetLanguage}} to inject the selected target language."
-          />
-          <span className="settings-field-hint">Use <code>{'{{targetLanguage}}'}</code> anywhere in the prompt to bind the selected language.</span>
-        </label>
-        <label className="settings-field settings-field-wide">
-          <span className="settings-field-label">API key</span>
-          <input
-            type="password"
-            value={formState.apiKey}
-            onChange={(event) => setFormState((current) => ({ ...current, apiKey: event.target.value }))}
-            placeholder={props.apiStatus.configured ? 'Leave blank to keep the current key' : 'Required'}
-          />
-          <span className="settings-field-hint">
-            {props.apiStatus.configured ? 'Leave empty to preserve the stored key.' : 'Stored locally and only used from the main process.'}
-          </span>
-        </label>
-      </div>
-      <div className="settings-action-row">
-        <button
-          className="ghost-button"
-          type="button"
-          onClick={props.onOpenLlmDebugFolder}
-        >
-          Open debug folder
-        </button>
-        <button
-          className="ghost-button"
-          type="button"
-          disabled={props.apiStatus.queueLength === 0}
-          onClick={props.onCancelQueuedTranslations}
-        >
-          Cancel queued translations
-        </button>
-        <button
-          className="primary-button"
-          type="button"
-          disabled={requiresLlmFields && !canSubmitLlmConfig}
-          onClick={() => {
-            props.onSave({
-              config: props.forceLlmSetup
-                ? {
-                  llmDebugEnabled: formState.llmDebugEnabled,
-                    targetLanguage: formState.targetLanguage,
-                    translationPrompt: formState.translationPrompt,
-                    apiBaseUrl: formState.apiBaseUrl.trim(),
-                    modelName: formState.modelName.trim()
-                  }
-                : {
-                  llmDebugEnabled: formState.llmDebugEnabled,
-                    targetLanguage: formState.targetLanguage,
-                    translationPrompt: formState.translationPrompt,
-                    apiBaseUrl: formState.apiBaseUrl.trim(),
-                    modelName: formState.modelName.trim(),
-                    debounceMs: Number(formState.debounceMs),
-                    maxQueueSize: Number(formState.maxQueueSize)
-                  },
-              apiKey: formState.apiKey || undefined
-            })
-            setFormState((current) => ({ ...current, apiKey: '' }))
-          }}
-        >
-          {props.forceLlmSetup ? 'Save provider settings' : 'Save settings'}
-        </button>
-      </div>
-    </section>
-  )
-}
+    <div className="settings-shell">
+      <aside className="settings-sidebar">
+        <nav className="settings-sidebar-nav" aria-label="Settings sections">
+          {SETTINGS_SECTIONS.map((section) => (
+            <button
+              className={`settings-sidebar-item ${selectedSection === section.id ? 'active' : ''}`}
+              key={section.id}
+              onClick={() => setSelectedSection(section.id)}
+              type="button"
+            >
+              <span className="settings-sidebar-icon">{section.icon}</span>
+              <span className="settings-sidebar-label">{section.label}</span>
+            </button>
+          ))}
+        </nav>
+      </aside>
 
-function createFormState(config: AppConfig) {
-  return {
-    llmDebugEnabled: config.llmDebugEnabled,
-    targetLanguage: config.targetLanguage,
-    translationPrompt: config.translationPrompt,
-    apiBaseUrl: config.apiBaseUrl,
-    modelName: config.modelName,
-    debounceMs: String(config.debounceMs),
-    maxQueueSize: String(config.maxQueueSize),
-    apiKey: ''
-  }
+      <div className="settings-body">
+        {selectedSection === 'providers' ? (
+          <ProvidersSettingsPage
+            apiStatus={props.apiStatus}
+            forceLlmSetup={props.forceLlmSetup}
+            llmProviderState={props.llmProviderState}
+            onFetchLlmProviderModels={props.onFetchLlmProviderModels}
+            onSaveLlmProviderProfile={props.onSaveLlmProviderProfile}
+            onSetActiveLlmProviderProfile={props.onSetActiveLlmProviderProfile}
+          />
+        ) : (
+          <GeneralSettingsPage
+            apiStatus={props.apiStatus}
+            config={props.config}
+            llmProviderState={props.llmProviderState}
+            onCancelQueuedTranslations={props.onCancelQueuedTranslations}
+            onOpenLlmDebugFolder={props.onOpenLlmDebugFolder}
+            onSaveSettings={props.onSaveSettings}
+          />
+        )}
+      </div>
+
+      <footer className="settings-footer">
+        <span className="settings-footer-status">All changes saved</span>
+        <div className="settings-footer-actions">
+          <button className="ghost-button" onClick={() => window.close()} type="button">
+            Close
+          </button>
+          <button className="primary-button" disabled type="button">
+            Save
+          </button>
+        </div>
+      </footer>
+    </div>
+  )
 }

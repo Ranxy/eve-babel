@@ -111,21 +111,18 @@ export function App() {
       <div className="app-shell settings-window-shell">
         <div className="app-backdrop" />
         <main className="app-layout settings-window-layout">
-          <section className="panel settings-page-header">
-            <div>
-              <div className="eyebrow">Settings</div>
-              <h1>Translation provider</h1>
-              <p className="hero-copy">Adjust the translation pipeline in a dedicated window so the main workspace stays focused on live chat traffic.</p>
-            </div>
-          </section>
           {state.error ? <div className="error-banner">{state.error}</div> : null}
           <SettingsPanel
             apiStatus={state.apiStatus}
             config={state.config}
             forceLlmSetup={showForcedLlmSetup}
+            llmProviderState={state.llmProviderState}
             onCancelQueuedTranslations={actions.cancelQueuedTranslations}
+            onFetchLlmProviderModels={actions.fetchLlmProviderModels}
             onOpenLlmDebugFolder={actions.openLlmDebugFolder}
-            onSave={actions.updateSettings}
+            onSaveLlmProviderProfile={actions.saveLlmProviderProfile}
+            onSaveSettings={actions.updateSettings}
+            onSetActiveLlmProviderProfile={actions.setActiveLlmProviderProfile}
           />
         </main>
       </div>
@@ -162,7 +159,7 @@ export function App() {
             <section className="panel panel-hero workspace-placeholder">
               <div className="eyebrow">Provider Setup</div>
               <h1>Translation is paused until a provider profile is configured.</h1>
-              <p className="hero-copy">Open the settings entry from the dock menu, enter your endpoint, model, and API key, then return to the live workspace.</p>
+              <p className="hero-copy">Open the settings entry from the dock menu, enter an API key, pick one of the discovered models, then activate that profile.</p>
               <button className="primary-button" onClick={actions.openSettingsWindow} type="button">
                 Open settings window
               </button>

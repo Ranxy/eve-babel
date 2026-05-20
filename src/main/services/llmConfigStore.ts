@@ -1,21 +1,39 @@
+import { randomUUID } from 'node:crypto'
 import { createRequire } from 'node:module'
 import { mkdir, readFile, rename, stat, unlink, writeFile } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
 
 import initSqlJs, { type Database, type SqlJsStatic } from 'sql.js'
 
+import type { LlmProviderId, LlmProviderProfile, SaveLlmProviderProfileInput } from '../../shared/types'
+import { getLlmProviderDefinition } from './llmProviderCatalog'
+
 const require = createRequire(import.meta.url)
 
-export interface LlmConfigRecord {
+export interface LlmResolvedConfig {
+  providerId: LlmProviderId
   apiBaseUrl: string
   modelName: string
 }
 
-interface LlmConfigUpdate extends Partial<LlmConfigRecord> {
-  apiKey?: string | null
+export interface LlmConfigSnapshot {
+  profiles: LlmProviderProfile[]
+  activeProfileId: string | null
+  resolvedConfig: LlmResolvedConfig | null
 }
 
-type LlmSettingsRow = {
+type ProviderProfileRow = {
+  profile_id: string
+  provider_id: string
+  api_base_url: string
+  model_name: string
+  encrypted_api_key: string | null
+  is_active: number
+  created_at: string
+  updated_at: string
+}
+
+type LegacySqliteRow = {
   api_base_url: string
   model_name: string
   encrypted_api_key: string | null
@@ -30,6 +48,12 @@ interface LegacyConfigPayload {
   modelName?: string
 }
 
+interface SafeStorageLike {
+  isEncryptionAvailable: () => boolean
+  encryptString: (value: string) => Buffer
+  decryptString: (value: Buffer) => string
+}
+
 export class LlmConfigStore {
   private sqlite: SqlJsStatic | null = null
   private database: Database | null = null
@@ -40,7 +64,7 @@ export class LlmConfigStore {
     private readonly legacyCredentialPath?: string
   ) {}
 
-  async load(): Promise<LlmConfigRecord> {
+  async load(): Promise<LlmConfigSnapshot> {
     await mkdir(dirname(this.filePath), { recursive: true })
 
     if (!this.sqlite) {
@@ -61,92 +85,244 @@ export class LlmConfigStore {
     }
 
     this.initializeSchema()
-    await this.ensureSeedRow()
+    await this.migrateLegacySqliteRowIfNeeded()
     await this.migrateLegacyFilesIfNeeded()
     await this.persist()
-    return this.getConfig()
+    return this.getSnapshot()
   }
 
-  getConfig(): LlmConfigRecord {
-    const row = this.getRow()
+  getSnapshot(): LlmConfigSnapshot {
+    const profiles = this.getProfileRows().map((row) => ({
+      profileId: row.profile_id,
+      providerId: row.provider_id as LlmProviderId,
+      apiBaseUrl: row.api_base_url,
+      modelName: row.model_name,
+      hasApiKey: Boolean(row.encrypted_api_key),
+      createdAt: row.created_at,
+      updatedAt: row.updated_at,
+      isActive: row.is_active === 1
+    }))
+    const resolvedConfig = this.getActiveResolvedConfig()
+
     return {
-      apiBaseUrl: row?.api_base_url ?? '',
-      modelName: row?.model_name ?? ''
+      profiles,
+      activeProfileId: profiles.find((profile) => profile.isActive)?.profileId ?? null,
+      resolvedConfig
     }
   }
 
-  async getApiKey(): Promise<string | null> {
-    const row = this.getRow()
-    if (!row?.encrypted_api_key) {
+  getActiveResolvedConfig(): LlmResolvedConfig | null {
+    const activeProfile = this.getActiveProfileRow()
+    if (!activeProfile) {
       return null
     }
 
-    return decryptStoredValue(row.encrypted_api_key)
+    return {
+      providerId: activeProfile.provider_id as LlmProviderId,
+      apiBaseUrl: activeProfile.api_base_url,
+      modelName: activeProfile.model_name
+    }
   }
 
-  async update(update: LlmConfigUpdate): Promise<LlmConfigRecord> {
-    const database = this.getDatabase()
-    const current = this.getRow()
-    const currentApiKey = current?.encrypted_api_key ?? null
+  async getActiveApiKey(): Promise<string | null> {
+    const activeProfile = this.getActiveProfileRow()
+    if (!activeProfile?.encrypted_api_key) {
+      return null
+    }
 
-    const nextApiKey =
-      typeof update.apiKey === 'undefined' ? currentApiKey : update.apiKey ? await encryptValue(update.apiKey.trim()) : null
+    return decryptStoredValue(activeProfile.encrypted_api_key)
+  }
+
+  async getApiKeyForProfile(profileId: string): Promise<string | null> {
+    const profile = this.getProfileRow(profileId)
+    if (!profile?.encrypted_api_key) {
+      return null
+    }
+
+    return decryptStoredValue(profile.encrypted_api_key)
+  }
+
+  async saveProfile(input: SaveLlmProviderProfileInput): Promise<LlmConfigSnapshot> {
+    const database = this.getDatabase()
+    const modelName = input.modelName.trim()
+
+    if (!modelName) {
+      throw new Error('Model name is required.')
+    }
+
+    const providerDefinition = getLlmProviderDefinition(input.providerId)
+    const current = input.profileId ? this.getProfileRow(input.profileId) : null
+    if (input.profileId && !current) {
+      throw new Error(`Provider profile not found: ${input.profileId}`)
+    }
+
+    const activeProfile = this.getActiveProfileRow()
+    const shouldActivate =
+      typeof input.activate === 'boolean' ? input.activate : current?.is_active === 1 || !activeProfile
+
+    if (shouldActivate) {
+      database.run('UPDATE llm_provider_profiles SET is_active = 0 WHERE is_active != 0')
+    }
+
+    const now = new Date().toISOString()
+    const trimmedApiKey = typeof input.apiKey === 'string' ? input.apiKey.trim() : undefined
+    const encryptedApiKey =
+      typeof trimmedApiKey === 'undefined'
+        ? current?.encrypted_api_key ?? null
+        : trimmedApiKey
+          ? await encryptValue(trimmedApiKey)
+          : null
 
     database.run(
       `
-        INSERT INTO llm_settings (id, api_base_url, model_name, encrypted_api_key, updated_at)
-        VALUES (1, $apiBaseUrl, $modelName, $encryptedApiKey, $updatedAt)
-        ON CONFLICT(id) DO UPDATE SET
+        INSERT INTO llm_provider_profiles (
+          profile_id,
+          provider_id,
+          api_base_url,
+          model_name,
+          encrypted_api_key,
+          is_active,
+          created_at,
+          updated_at
+        )
+        VALUES (
+          $profileId,
+          $providerId,
+          $apiBaseUrl,
+          $modelName,
+          $encryptedApiKey,
+          $isActive,
+          $createdAt,
+          $updatedAt
+        )
+        ON CONFLICT(profile_id) DO UPDATE SET
+          provider_id = excluded.provider_id,
           api_base_url = excluded.api_base_url,
           model_name = excluded.model_name,
           encrypted_api_key = excluded.encrypted_api_key,
+          is_active = excluded.is_active,
           updated_at = excluded.updated_at
       `,
       {
-        $apiBaseUrl: typeof update.apiBaseUrl === 'string' ? update.apiBaseUrl.trim() : current?.api_base_url ?? '',
-        $modelName: typeof update.modelName === 'string' ? update.modelName.trim() : current?.model_name ?? '',
-        $encryptedApiKey: nextApiKey,
+        $profileId: current?.profile_id ?? randomUUID(),
+        $providerId: input.providerId,
+        $apiBaseUrl: current?.api_base_url ?? providerDefinition.defaultApiBaseUrl,
+        $modelName: modelName,
+        $encryptedApiKey: encryptedApiKey,
+        $isActive: shouldActivate ? 1 : 0,
+        $createdAt: current?.created_at ?? now,
+        $updatedAt: now
+      }
+    )
+
+    await this.persist()
+    return this.getSnapshot()
+  }
+
+  async setActiveProfile(profileId: string): Promise<LlmConfigSnapshot> {
+    const database = this.getDatabase()
+    const current = this.getProfileRow(profileId)
+
+    if (!current) {
+      throw new Error(`Provider profile not found: ${profileId}`)
+    }
+
+    database.run('UPDATE llm_provider_profiles SET is_active = 0 WHERE is_active != 0')
+    database.run(
+      'UPDATE llm_provider_profiles SET is_active = 1, updated_at = $updatedAt WHERE profile_id = $profileId',
+      {
+        $profileId: profileId,
         $updatedAt: new Date().toISOString()
       }
     )
 
     await this.persist()
-    return this.getConfig()
+    return this.getSnapshot()
   }
 
   private initializeSchema(): void {
     const database = this.getDatabase()
     database.exec(`
-      CREATE TABLE IF NOT EXISTS llm_settings (
-        id INTEGER PRIMARY KEY CHECK (id = 1),
+      CREATE TABLE IF NOT EXISTS llm_provider_profiles (
+        profile_id TEXT PRIMARY KEY,
+        provider_id TEXT NOT NULL,
         api_base_url TEXT NOT NULL,
         model_name TEXT NOT NULL,
         encrypted_api_key TEXT,
+        is_active INTEGER NOT NULL DEFAULT 0,
+        created_at TEXT NOT NULL,
         updated_at TEXT NOT NULL
       );
     `)
   }
 
-  private async ensureSeedRow(): Promise<void> {
+  private getProfileRows(): ProviderProfileRow[] {
     const database = this.getDatabase()
-    database.run(
+    const statement = database.prepare(
       `
-        INSERT INTO llm_settings (id, api_base_url, model_name, encrypted_api_key, updated_at)
-        VALUES (1, '', '', NULL, $updatedAt)
-        ON CONFLICT(id) DO NOTHING
-      `,
-      {
-        $updatedAt: new Date().toISOString()
-      }
+        SELECT profile_id, provider_id, api_base_url, model_name, encrypted_api_key, is_active, created_at, updated_at
+        FROM llm_provider_profiles
+        ORDER BY is_active DESC, updated_at DESC, created_at DESC
+      `
     )
+    const rows: ProviderProfileRow[] = []
+
+    while (statement.step()) {
+      rows.push(statement.getAsObject() as ProviderProfileRow)
+    }
+
+    statement.free()
+    return rows
   }
 
-  private getRow(): LlmSettingsRow | null {
+  private getProfileRow(profileId: string): ProviderProfileRow | null {
     const database = this.getDatabase()
-    const statement = database.prepare('SELECT api_base_url, model_name, encrypted_api_key FROM llm_settings WHERE id = 1')
-    const row = statement.step() ? (statement.getAsObject() as LlmSettingsRow) : null
+    const statement = database.prepare(
+      `
+        SELECT profile_id, provider_id, api_base_url, model_name, encrypted_api_key, is_active, created_at, updated_at
+        FROM llm_provider_profiles
+        WHERE profile_id = $profileId
+      `
+    )
+    statement.bind({ $profileId: profileId })
+    const row = statement.step() ? (statement.getAsObject() as ProviderProfileRow) : null
     statement.free()
     return row
+  }
+
+  private getActiveProfileRow(): ProviderProfileRow | null {
+    const database = this.getDatabase()
+    const statement = database.prepare(
+      `
+        SELECT profile_id, provider_id, api_base_url, model_name, encrypted_api_key, is_active, created_at, updated_at
+        FROM llm_provider_profiles
+        WHERE is_active = 1
+        ORDER BY updated_at DESC
+        LIMIT 1
+      `
+    )
+    const row = statement.step() ? (statement.getAsObject() as ProviderProfileRow) : null
+    statement.free()
+    return row
+  }
+
+  private hasProfiles(): boolean {
+    return this.getProfileRows().length > 0
+  }
+
+  private getLegacySqliteRow(): LegacySqliteRow | null {
+    const database = this.getDatabase()
+
+    try {
+      const statement = database.prepare(
+        'SELECT api_base_url, model_name, encrypted_api_key FROM llm_settings WHERE id = 1 LIMIT 1'
+      )
+      const row = statement.step() ? (statement.getAsObject() as LegacySqliteRow) : null
+      statement.free()
+      return row
+    } catch {
+      return null
+    }
   }
 
   private getDatabase(): Database {
@@ -162,11 +338,52 @@ export class LlmConfigStore {
     await writeFile(this.filePath, Buffer.from(this.getDatabase().export()))
   }
 
-  private async migrateLegacyFilesIfNeeded(): Promise<void> {
-    const current = this.getRow()
-    const alreadyConfigured = Boolean(current && (current.api_base_url || current.model_name || current.encrypted_api_key))
+  private async migrateLegacySqliteRowIfNeeded(): Promise<void> {
+    if (this.hasProfiles()) {
+      return
+    }
 
-    if (alreadyConfigured) {
+    const legacyRow = this.getLegacySqliteRow()
+    if (!legacyRow) {
+      return
+    }
+
+    const apiBaseUrl = legacyRow.api_base_url?.trim() ?? ''
+    const modelName = legacyRow.model_name?.trim() ?? ''
+    if (!apiBaseUrl && !modelName && !legacyRow.encrypted_api_key) {
+      return
+    }
+
+    const database = this.getDatabase()
+    const now = new Date().toISOString()
+    database.run(
+      `
+        INSERT INTO llm_provider_profiles (
+          profile_id,
+          provider_id,
+          api_base_url,
+          model_name,
+          encrypted_api_key,
+          is_active,
+          created_at,
+          updated_at
+        )
+        VALUES ($profileId, $providerId, $apiBaseUrl, $modelName, $encryptedApiKey, 1, $createdAt, $updatedAt)
+      `,
+      {
+        $profileId: randomUUID(),
+        $providerId: 'openai',
+        $apiBaseUrl: apiBaseUrl || getLlmProviderDefinition('openai').defaultApiBaseUrl,
+        $modelName: modelName,
+        $encryptedApiKey: legacyRow.encrypted_api_key,
+        $createdAt: now,
+        $updatedAt: now
+      }
+    )
+  }
+
+  private async migrateLegacyFilesIfNeeded(): Promise<void> {
+    if (this.hasProfiles()) {
       return
     }
 
@@ -177,11 +394,32 @@ export class LlmConfigStore {
       return
     }
 
-    await this.update({
-      apiBaseUrl: legacyConfig.apiBaseUrl ?? '',
-      modelName: legacyConfig.modelName ?? '',
-      apiKey: legacyApiKey
-    })
+    const now = new Date().toISOString()
+    const database = this.getDatabase()
+    database.run(
+      `
+        INSERT INTO llm_provider_profiles (
+          profile_id,
+          provider_id,
+          api_base_url,
+          model_name,
+          encrypted_api_key,
+          is_active,
+          created_at,
+          updated_at
+        )
+        VALUES ($profileId, $providerId, $apiBaseUrl, $modelName, $encryptedApiKey, 1, $createdAt, $updatedAt)
+      `,
+      {
+        $profileId: randomUUID(),
+        $providerId: 'openai',
+        $apiBaseUrl: legacyConfig.apiBaseUrl || getLlmProviderDefinition('openai').defaultApiBaseUrl,
+        $modelName: legacyConfig.modelName,
+        $encryptedApiKey: legacyApiKey ? await encryptValue(legacyApiKey) : null,
+        $createdAt: now,
+        $updatedAt: now
+      }
+    )
 
     if (this.legacyCredentialPath) {
       const migratedFilePath = `${this.legacyCredentialPath}.migrated`
@@ -190,7 +428,7 @@ export class LlmConfigStore {
     }
   }
 
-  private async readLegacyConfig(): Promise<LlmConfigRecord> {
+  private async readLegacyConfig(): Promise<{ apiBaseUrl: string; modelName: string }> {
     if (!this.legacyConfigPath) {
       return { apiBaseUrl: '', modelName: '' }
     }
@@ -236,7 +474,7 @@ async function getSafeStorage() {
     return null
   }
 
-  const safeStorage = 'safeStorage' in electronModule ? electronModule.safeStorage : null
+  const safeStorage = 'safeStorage' in electronModule ? (electronModule.safeStorage as SafeStorageLike | null) : null
 
   if (
     safeStorage &&
