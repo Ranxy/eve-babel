@@ -6,6 +6,8 @@ import type { ChatMessage, ChatSessionFile, WatcherStatus } from '../../shared/t
 import { ChatLogParser } from './chatLogParser'
 import { parseChatLogFilename } from './chatLogScanner'
 
+const DEFAULT_POLL_INTERVAL_MS = 500
+
 interface FileState {
   offset: number
   leftoverText: string
@@ -21,8 +23,10 @@ export class ChatLogWatcher {
   private watcher: FSWatcher | null = null
   private activeSessions = new Map<string, ChatSessionFile>()
   private fileState = new Map<string, FileState>()
+  private activeReads = new Set<string>()
   private directoryPath: string | null = null
   private currentCharacterId: string | null = null
+  private pollTimer: NodeJS.Timeout | null = null
   private status: WatcherStatus = {
     state: 'idle',
     watchedChannels: 0,
@@ -31,7 +35,11 @@ export class ChatLogWatcher {
     lastError: null
   }
 
-  constructor(private readonly parser: ChatLogParser, private readonly callbacks: WatcherCallbacks) {}
+  constructor(
+    private readonly parser: ChatLogParser,
+    private readonly callbacks: WatcherCallbacks,
+    private readonly options: { pollIntervalMs?: number } = {}
+  ) {}
 
   getStatus(): WatcherStatus {
     return { ...this.status }
@@ -74,6 +82,8 @@ export class ChatLogWatcher {
       })
     })
 
+    this.startPolling()
+
     this.publishStatus({
       state: 'watching',
       watchedChannels: activeSessions.length,
@@ -83,12 +93,15 @@ export class ChatLogWatcher {
   }
 
   async stop(): Promise<void> {
+    this.stopPolling()
+
     if (this.watcher) {
       await this.watcher.close()
       this.watcher = null
     }
 
     this.activeSessions.clear()
+    this.activeReads.clear()
     this.fileState.clear()
     this.publishStatus({
       state: 'idle',
@@ -146,9 +159,11 @@ export class ChatLogWatcher {
 
   private async handleFileChanged(filePath: string): Promise<void> {
     const session = this.activeSessions.get(filePath)
-    if (!session) {
+    if (!session || this.activeReads.has(filePath)) {
       return
     }
+
+    this.activeReads.add(filePath)
 
     try {
       const fileStats = await stat(filePath)
@@ -201,6 +216,39 @@ export class ChatLogWatcher {
         state: 'error',
         lastError: error instanceof Error ? error.message : 'Unknown read error'
       })
+    } finally {
+      this.activeReads.delete(filePath)
+    }
+  }
+
+  private startPolling(): void {
+    this.stopPolling()
+
+    if (this.activeSessions.size === 0) {
+      return
+    }
+
+    this.pollTimer = setInterval(() => {
+      void this.pollActiveSessions()
+    }, this.options.pollIntervalMs ?? DEFAULT_POLL_INTERVAL_MS)
+
+    this.pollTimer.unref?.()
+  }
+
+  private stopPolling(): void {
+    if (!this.pollTimer) {
+      return
+    }
+
+    clearInterval(this.pollTimer)
+    this.pollTimer = null
+  }
+
+  private async pollActiveSessions(): Promise<void> {
+    const activeFilePaths = Array.from(this.activeSessions.keys())
+
+    for (const filePath of activeFilePaths) {
+      await this.handleFileChanged(filePath)
     }
   }
 
