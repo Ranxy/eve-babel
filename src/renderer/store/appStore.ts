@@ -136,6 +136,7 @@ export function useAppStore() {
     actions: {
       refreshScan: () => runAction(window.eveBabel.refreshScan()),
       chooseLogDirectory: () => runAction(window.eveBabel.chooseLogDirectory()),
+      openSettingsWindow: () => window.eveBabel.openSettingsWindow(),
       setLogDirectory: (directory: string) => runAction(window.eveBabel.setLogDirectory(directory)),
       selectCharacter: (characterId: string) => runAction(window.eveBabel.selectCharacter(characterId)),
       setChannelEnabled: (channelName: string, enabled: boolean) => runAction(window.eveBabel.setChannelEnabled(channelName, enabled)),

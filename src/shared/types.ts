@@ -113,13 +113,13 @@ export interface EveBabelApi {
   getBootstrapData: () => Promise<BootstrapPayload>
   refreshScan: () => Promise<BootstrapPayload>
   chooseLogDirectory: () => Promise<BootstrapPayload>
+  openSettingsWindow: () => Promise<void>
   setLogDirectory: (directory: string) => Promise<BootstrapPayload>
   selectCharacter: (characterId: string) => Promise<BootstrapPayload>
   setChannelEnabled: (channelName: string, enabled: boolean) => Promise<BootstrapPayload>
   updateSettings: (update: AppSettingsUpdate) => Promise<BootstrapPayload>
   onMessagesUpsert: (listener: (messages: ChatMessage[]) => void) => () => void
   onChannelsUpdate: (listener: (channels: ChannelSummary[]) => void) => () => void
-  onOpenSettings: (listener: () => void) => () => void
   onStatusUpdate: (
     listener: (payload: Pick<BootstrapPayload, 'directoryStatus' | 'watcherStatus' | 'apiStatus'>) => void
   ) => () => void

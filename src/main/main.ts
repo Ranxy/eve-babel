@@ -1,7 +1,7 @@
-import { app, BrowserWindow, Menu, type MenuItemConstructorOptions } from 'electron'
+import { app, BrowserWindow, Menu, nativeTheme, screen, type MenuItemConstructorOptions } from 'electron'
 import { readFile } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
-import { fileURLToPath } from 'node:url'
+import { fileURLToPath, pathToFileURL } from 'node:url'
 
 import type { AppConfig, AppSettingsUpdate, BootstrapPayload, ChatMessage, ChannelSummary, ChatSessionFile } from '../shared/types'
 import { registerIpcRouter, emitChannels, emitMessages, emitStatus } from './ipc/ipcRouter'
@@ -16,11 +16,13 @@ import { LlmClient } from './services/llmClient'
 import { LlmConfigStore, type LlmConfigRecord } from './services/llmConfigStore'
 import { MessageRepository } from './services/messageRepository'
 import { TranslationQueue } from './services/translationQueue'
+import { WindowStateStore, type WindowKind, type WindowStateSnapshot } from './services/windowStateStore'
 
 const currentDirectory = dirname(fileURLToPath(import.meta.url))
 
 class EveBabelApp {
   private mainWindow: BrowserWindow | null = null
+  private settingsWindow: BrowserWindow | null = null
   private scanIndex: ScanIndex = {
     characters: [],
     channelsByCharacter: {},
@@ -28,6 +30,7 @@ class EveBabelApp {
   }
 
   private readonly configStore = new ConfigStore(ConfigStore.createDefaultFilePath(app.getPath('userData')))
+  private readonly windowStateStore = new WindowStateStore(WindowStateStore.createDefaultFilePath(app.getPath('userData')))
   private readonly llmConfigStore = new LlmConfigStore(
     LlmConfigStore.createDefaultFilePath(app.getPath('userData')),
     ConfigStore.createDefaultFilePath(app.getPath('userData')),
@@ -71,6 +74,7 @@ class EveBabelApp {
   async initialize(): Promise<void> {
     const persistedConfig = await this.configStore.load()
     const llmConfig = await this.llmConfigStore.load()
+    await this.windowStateStore.load()
     this.config = this.composeRuntimeConfig(persistedConfig, llmConfig)
     await this.messageRepository.load()
     await this.translationQueue.refreshConfiguration(this.config)
@@ -78,26 +82,76 @@ class EveBabelApp {
   }
 
   async createWindow(): Promise<void> {
-    this.mainWindow = new BrowserWindow({
+    const bounds = this.resolveWindowBounds('main', {
       width: 1440,
       height: 920,
       minWidth: 1160,
+      minHeight: 760
+    })
+
+    this.mainWindow = new BrowserWindow({
+      ...bounds,
+      minWidth: 1160,
       minHeight: 760,
-      backgroundColor: '#e7dfd2',
+      show: false,
+      title: 'EVE Babel',
+      backgroundColor: this.getWindowBackgroundColor(),
       webPreferences: {
         preload: join(currentDirectory, '../preload/preload.cjs'),
         contextIsolation: true,
-        nodeIntegration: false
+        nodeIntegration: false,
+        spellcheck: false
+      }
+    })
+    this.mainWindow.on('closed', () => {
+      this.mainWindow = null
+    })
+    this.configureNativeWindow(this.mainWindow, 'main')
+
+    this.configureMenu()
+    await this.loadRendererView(this.mainWindow, 'main')
+  }
+
+  async openSettingsWindow(): Promise<void> {
+    if (this.settingsWindow && !this.settingsWindow.isDestroyed()) {
+      if (this.settingsWindow.isMinimized()) {
+        this.settingsWindow.restore()
+      }
+
+      this.settingsWindow.focus()
+      return
+    }
+
+    const bounds = this.resolveWindowBounds('settings', {
+      width: 720,
+      height: 760,
+      minWidth: 620,
+      minHeight: 680
+    })
+
+    this.settingsWindow = new BrowserWindow({
+      ...bounds,
+      minWidth: 620,
+      minHeight: 680,
+      show: false,
+      title: 'EVE Babel Settings',
+      backgroundColor: this.getWindowBackgroundColor(),
+      parent: this.mainWindow ?? undefined,
+      autoHideMenuBar: true,
+      webPreferences: {
+        preload: join(currentDirectory, '../preload/preload.cjs'),
+        contextIsolation: true,
+        nodeIntegration: false,
+        spellcheck: false
       }
     })
 
-    this.configureMenu()
+    this.settingsWindow.on('closed', () => {
+      this.settingsWindow = null
+    })
+    this.configureNativeWindow(this.settingsWindow, 'settings')
 
-    if (process.env.ELECTRON_RENDERER_URL) {
-      await this.mainWindow.loadURL(process.env.ELECTRON_RENDERER_URL)
-    } else {
-      await this.mainWindow.loadFile(join(currentDirectory, '../renderer/index.html'))
-    }
+    await this.loadRendererView(this.settingsWindow, 'settings')
   }
 
   async getBootstrapData(): Promise<BootstrapPayload> {
@@ -301,31 +355,29 @@ class EveBabelApp {
   }
 
   private publishMessages(messages?: ChatMessage[]): void {
-    if (!this.mainWindow || !messages || messages.length === 0) {
+    if (!messages || messages.length === 0) {
       return
     }
 
-    emitMessages(this.mainWindow, messages)
+    for (const window of this.getOpenWindows()) {
+      emitMessages(window, messages)
+    }
   }
 
   private publishChannels(): void {
-    if (!this.mainWindow) {
-      return
+    for (const window of this.getOpenWindows()) {
+      emitChannels(window, this.channelRegistry.getChannels(this.characterRegistry.getSelectedCharacterId()))
     }
-
-    emitChannels(this.mainWindow, this.channelRegistry.getChannels(this.characterRegistry.getSelectedCharacterId()))
   }
 
   private publishStatus(): void {
-    if (!this.mainWindow) {
-      return
+    for (const window of this.getOpenWindows()) {
+      emitStatus(window, {
+        directoryStatus: this.pathResolver.resolveDirectory(this.config.logDirectory),
+        watcherStatus: this.watcher.getStatus(),
+        apiStatus: this.translationQueue.getStatus()
+      })
     }
-
-    emitStatus(this.mainWindow, {
-      directoryStatus: this.pathResolver.resolveDirectory(this.config.logDirectory),
-      watcherStatus: this.watcher.getStatus(),
-      apiStatus: this.translationQueue.getStatus()
-    })
   }
 
   private configureMenu(): void {
@@ -336,7 +388,9 @@ class EveBabelApp {
           {
             label: 'Settings',
             accelerator: 'CmdOrCtrl+,',
-            click: () => this.openSettingsPage()
+            click: () => {
+              void this.openSettingsWindow()
+            }
           },
           { type: 'separator' },
           { role: process.platform === 'darwin' ? 'close' : 'quit' }
@@ -351,36 +405,217 @@ class EveBabelApp {
     Menu.setApplicationMenu(Menu.buildFromTemplate(template))
   }
 
-  private openSettingsPage(): void {
-    if (!this.mainWindow || this.mainWindow.isDestroyed()) {
+  focusPrimaryWindow(): void {
+    const targetWindow = this.mainWindow ?? this.settingsWindow
+    if (!targetWindow || targetWindow.isDestroyed()) {
       return
     }
 
-    this.mainWindow.webContents.send('app:openSettings')
-    this.mainWindow.focus()
+    if (targetWindow.isMinimized()) {
+      targetWindow.restore()
+    }
+
+    targetWindow.focus()
+  }
+
+  private getOpenWindows(): BrowserWindow[] {
+    return [this.mainWindow, this.settingsWindow].filter((window): window is BrowserWindow => Boolean(window && !window.isDestroyed()))
+  }
+
+  private configureNativeWindow(window: BrowserWindow, kind: WindowKind): void {
+    this.installNativeContextMenu(window)
+    this.installWindowStatePersistence(window, kind)
+
+    const savedState = this.windowStateStore.getWindowState(kind)
+    if (savedState?.isMaximized) {
+      window.maximize()
+    }
+
+    window.once('ready-to-show', () => {
+      window.show()
+      if (kind === 'settings') {
+        window.focus()
+      }
+    })
+  }
+
+  private installNativeContextMenu(window: BrowserWindow): void {
+    window.webContents.on('context-menu', (event, params) => {
+      event.preventDefault()
+
+      const template: MenuItemConstructorOptions[] = []
+
+      if (params.isEditable) {
+        template.push(
+          { role: 'undo' },
+          { role: 'redo' },
+          { type: 'separator' },
+          { role: 'cut' },
+          { role: 'copy' },
+          { role: 'paste' },
+          { role: 'selectAll' }
+        )
+      } else if (params.selectionText.trim().length > 0) {
+        template.push({ role: 'copy' }, { type: 'separator' }, { role: 'selectAll' })
+      }
+
+      if (template.length === 0) {
+        return
+      }
+
+      Menu.buildFromTemplate(template).popup({ window })
+    })
+  }
+
+  private installWindowStatePersistence(window: BrowserWindow, kind: WindowKind): void {
+    let persistTimer: NodeJS.Timeout | null = null
+
+    const persistNow = () => {
+      if (persistTimer) {
+        clearTimeout(persistTimer)
+        persistTimer = null
+      }
+
+      void this.windowStateStore.updateWindowState(kind, this.captureWindowState(window))
+    }
+
+    const schedulePersist = () => {
+      if (persistTimer) {
+        clearTimeout(persistTimer)
+      }
+
+      persistTimer = setTimeout(() => {
+        persistNow()
+      }, 180)
+    }
+
+    window.on('move', schedulePersist)
+    window.on('resize', schedulePersist)
+    window.on('maximize', persistNow)
+    window.on('unmaximize', persistNow)
+    window.on('close', persistNow)
+  }
+
+  private captureWindowState(window: BrowserWindow): WindowStateSnapshot {
+    const bounds = window.isMaximized() ? window.getNormalBounds() : window.getBounds()
+
+    return {
+      x: bounds.x,
+      y: bounds.y,
+      width: bounds.width,
+      height: bounds.height,
+      isMaximized: window.isMaximized()
+    }
+  }
+
+  private resolveWindowBounds(
+    kind: WindowKind,
+    defaults: { width: number; height: number; minWidth: number; minHeight: number }
+  ): Partial<Electron.BrowserWindowConstructorOptions> {
+    const savedState = this.windowStateStore.getWindowState(kind)
+    if (!savedState) {
+      return {
+        width: defaults.width,
+        height: defaults.height
+      }
+    }
+
+    const width = Math.max(savedState.width, defaults.minWidth)
+    const height = Math.max(savedState.height, defaults.minHeight)
+
+    if (typeof savedState.x !== 'number' || typeof savedState.y !== 'number') {
+      return { width, height }
+    }
+
+    const nextBounds = {
+      x: savedState.x,
+      y: savedState.y,
+      width,
+      height
+    }
+
+    if (!this.isVisibleOnAnyDisplay(nextBounds)) {
+      return { width, height }
+    }
+
+    return nextBounds
+  }
+
+  private isVisibleOnAnyDisplay(bounds: { x: number; y: number; width: number; height: number }): boolean {
+    return screen.getAllDisplays().some((display) => {
+      const workArea = display.workArea
+      return !(
+        bounds.x + bounds.width <= workArea.x ||
+        workArea.x + workArea.width <= bounds.x ||
+        bounds.y + bounds.height <= workArea.y ||
+        workArea.y + workArea.height <= bounds.y
+      )
+    })
+  }
+
+  private getWindowBackgroundColor(): string {
+    return nativeTheme.shouldUseDarkColors ? '#0b1821' : '#ece4d7'
+  }
+
+  refreshNativeTheme(): void {
+    for (const window of this.getOpenWindows()) {
+      window.setBackgroundColor(this.getWindowBackgroundColor())
+    }
+  }
+
+  private async loadRendererView(targetWindow: BrowserWindow, view: 'main' | 'settings'): Promise<void> {
+    const search = view === 'settings' ? '?view=settings' : ''
+
+    if (process.env.ELECTRON_RENDERER_URL) {
+      await targetWindow.loadURL(`${process.env.ELECTRON_RENDERER_URL}${search}`)
+      return
+    }
+
+    const rendererUrl = `${pathToFileURL(join(currentDirectory, '../renderer/index.html')).toString()}${search}`
+    await targetWindow.loadURL(rendererUrl)
   }
 }
 
 const eveBabelApp = new EveBabelApp()
 
-app.whenReady().then(async () => {
-  await eveBabelApp.initialize()
-  registerIpcRouter({
-    getBootstrapData: () => eveBabelApp.getBootstrapData(),
-    refreshScan: () => eveBabelApp.refreshScan(),
-    setLogDirectory: (directory) => eveBabelApp.setLogDirectory(directory),
-    selectCharacter: (characterId) => eveBabelApp.selectCharacter(characterId),
-    setChannelEnabled: (channelName, enabled) => eveBabelApp.setChannelEnabled(channelName, enabled),
-    updateSettings: (update) => eveBabelApp.updateSettings(update)
-  })
-  await eveBabelApp.createWindow()
+const hasSingleInstanceLock = app.requestSingleInstanceLock()
 
-  app.on('activate', async () => {
-    if (BrowserWindow.getAllWindows().length === 0) {
-      await eveBabelApp.createWindow()
-    }
-  })
+if (!hasSingleInstanceLock) {
+  app.quit()
+}
+
+app.on('second-instance', () => {
+  eveBabelApp.focusPrimaryWindow()
 })
+
+if (hasSingleInstanceLock) {
+  app.whenReady().then(async () => {
+    nativeTheme.themeSource = 'system'
+    await eveBabelApp.initialize()
+    registerIpcRouter({
+      getBootstrapData: () => eveBabelApp.getBootstrapData(),
+      refreshScan: () => eveBabelApp.refreshScan(),
+      openSettingsWindow: () => eveBabelApp.openSettingsWindow(),
+      setLogDirectory: (directory) => eveBabelApp.setLogDirectory(directory),
+      selectCharacter: (characterId) => eveBabelApp.selectCharacter(characterId),
+      setChannelEnabled: (channelName, enabled) => eveBabelApp.setChannelEnabled(channelName, enabled),
+      updateSettings: (update) => eveBabelApp.updateSettings(update)
+    })
+    nativeTheme.on('updated', () => {
+      eveBabelApp.refreshNativeTheme()
+    })
+    await eveBabelApp.createWindow()
+
+    app.on('activate', async () => {
+      if (BrowserWindow.getAllWindows().length === 0) {
+        await eveBabelApp.createWindow()
+        return
+      }
+
+      eveBabelApp.focusPrimaryWindow()
+    })
+  })
+}
 
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') {

@@ -5,6 +5,7 @@ import type { AppSettingsUpdate, BootstrapPayload, ChatMessage, ChannelSummary }
 export interface IpcController {
   getBootstrapData: () => Promise<BootstrapPayload>
   refreshScan: () => Promise<BootstrapPayload>
+  openSettingsWindow: () => Promise<void>
   setLogDirectory: (directory: string) => Promise<BootstrapPayload>
   selectCharacter: (characterId: string) => Promise<BootstrapPayload>
   setChannelEnabled: (channelName: string, enabled: boolean) => Promise<BootstrapPayload>
@@ -14,6 +15,7 @@ export interface IpcController {
 export function registerIpcRouter(controller: IpcController): void {
   ipcMain.handle('app:getBootstrapData', () => controller.getBootstrapData())
   ipcMain.handle('app:refreshScan', () => controller.refreshScan())
+  ipcMain.handle('app:openSettingsWindow', () => controller.openSettingsWindow())
   ipcMain.handle('app:setLogDirectory', (_event, directory: string) => controller.setLogDirectory(directory))
   ipcMain.handle('app:selectCharacter', (_event, characterId: string) => controller.selectCharacter(characterId))
   ipcMain.handle('app:setChannelEnabled', (_event, channelName: string, enabled: boolean) => {

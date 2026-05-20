@@ -15,13 +15,28 @@ export function MessageFeed(props: MessageFeedProps) {
 
   return (
     <section className="panel message-panel">
-      <div className="panel-header">
+      <div className="panel-header message-panel-header">
         <div>
           <div className="eyebrow">Conversation</div>
           <h2>{selectedChannel?.channelName ?? 'Choose a channel'}</h2>
-          {selectedChannel ? <p className="conversation-subtitle">{selectedChannel.enabled ? 'Translation enabled for new messages' : 'Translation disabled for this channel'}</p> : null}
+          {selectedChannel ? (
+            <p className="conversation-subtitle">
+              {selectedChannel.enabled ? 'New arrivals are queued into live translation.' : 'This route is visible but translation is currently muted.'}
+            </p>
+          ) : null}
+          <div className="conversation-meta-row">
+            {props.selectedCharacterLabel ? <span className="chip chip-neutral">{props.selectedCharacterLabel}</span> : null}
+            {selectedChannel ? (
+              <span className={`chip ${selectedChannel.enabled ? 'chip-ok' : 'chip-neutral'}`}>
+                {selectedChannel.enabled ? 'Translation live' : 'Translation muted'}
+              </span>
+            ) : null}
+          </div>
         </div>
-        <span className="chip">{visibleMessages.length} messages</span>
+        <div className="message-panel-summary">
+          <span className="message-panel-count">{visibleMessages.length}</span>
+          <span className="status-label">messages</span>
+        </div>
       </div>
       <div className="message-feed chat-thread">
         {!props.selectedChannelName ? (
@@ -36,11 +51,16 @@ export function MessageFeed(props: MessageFeedProps) {
             >
               <div className="chat-message-meta">
                 <span className="chat-sender">{message.senderName}</span>
-                <span>{new Date(message.timestamp).toLocaleTimeString()}</span>
+                <span className={`status-pill ${resolveStatusTone(message.translationStatus)}`}>{resolveStatusLabel(message)}</span>
+                <span>{formatTime(message.timestamp)}</span>
               </div>
               <div className="chat-bubble-stack">
-                <div className="chat-bubble chat-bubble-original">{message.messageText}</div>
+                <div className="chat-bubble chat-bubble-original">
+                  <span className="chat-section-label">Original</span>
+                  <div>{message.messageText}</div>
+                </div>
                 <div className="chat-bubble chat-bubble-translation">
+                  <span className="chat-section-label">Translation</span>
                   {message.translatedText ??
                     message.errorMessage ??
                     (message.translationStatus === 'skipped' ? 'System message or translation disabled.' : 'Waiting for translation.')}
@@ -52,6 +72,53 @@ export function MessageFeed(props: MessageFeedProps) {
       </div>
     </section>
   )
+}
+
+function resolveStatusLabel(message: ChatMessage): string {
+  if (message.translationStatus === 'translated') {
+    return 'Translated'
+  }
+
+  if (message.translationStatus === 'error') {
+    return 'Error'
+  }
+
+  if (message.translationStatus === 'translating') {
+    return 'Translating'
+  }
+
+  if (message.translationStatus === 'queued') {
+    return 'Queued'
+  }
+
+  if (message.translationStatus === 'skipped') {
+    return 'Skipped'
+  }
+
+  return 'Pending'
+}
+
+function resolveStatusTone(status: ChatMessage['translationStatus']): string {
+  if (status === 'translated') {
+    return 'status-translated'
+  }
+
+  if (status === 'error') {
+    return 'status-error'
+  }
+
+  if (status === 'queued' || status === 'translating') {
+    return 'status-translating'
+  }
+
+  return 'status-idle'
+}
+
+function formatTime(timestamp: string): string {
+  return new Date(timestamp).toLocaleTimeString([], {
+    hour: '2-digit',
+    minute: '2-digit'
+  })
 }
 
 function resolveMessageTone(message: ChatMessage, selectedCharacterLabel: string | null): string {

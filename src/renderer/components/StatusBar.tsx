@@ -8,8 +8,10 @@ interface StatusBarProps {
   apiStatus: ApiStatus
   characters: CharacterSummary[]
   selectedCharacterId: string | null
+  isSidebarCollapsed: boolean
   onChooseDirectory: () => void
   onSelectCharacter: (characterId: string) => void
+  onToggleSidebar: () => void
 }
 
 export function StatusBar(props: StatusBarProps) {
@@ -33,16 +35,34 @@ export function StatusBar(props: StatusBarProps) {
     }
 
     window.addEventListener('pointerdown', handlePointerDown)
-    return () => window.removeEventListener('pointerdown', handlePointerDown)
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setIsCharacterMenuOpen(false)
+      }
+    }
+
+    window.addEventListener('keydown', handleKeyDown)
+    return () => {
+      window.removeEventListener('pointerdown', handlePointerDown)
+      window.removeEventListener('keydown', handleKeyDown)
+    }
   }, [isCharacterMenuOpen])
 
   return (
-    <section className="status-bar">
-      <div className="status-bar-primary">
-        <div>
-          <span className="status-label">Active pilot</span>
-          <strong>EVE Babel</strong>
-        </div>
+    <section className="panel workspace-toolbar">
+      <div className="workspace-toolbar-group workspace-toolbar-group-primary">
+        <button
+          aria-label={props.isSidebarCollapsed ? 'Show channels' : 'Hide channels'}
+          className="toolbar-icon-button"
+          onClick={props.onToggleSidebar}
+          type="button"
+        >
+          <span />
+          <span />
+          <span />
+        </button>
+        <strong className="status-headline workspace-title">EVE Babel</strong>
         <div className="character-menu" ref={menuRef}>
           <button
             className="character-menu-trigger"
@@ -51,9 +71,6 @@ export function StatusBar(props: StatusBarProps) {
             type="button"
           >
             <span className="character-menu-title">{selectedCharacter?.label ?? 'No character found'}</span>
-            <span className="character-menu-meta">
-              {selectedCharacter ? `${selectedCharacter.availableChannelCount} channels` : 'Import chatlogs to begin'}
-            </span>
           </button>
           {isCharacterMenuOpen ? (
             <div className="character-menu-popover">
@@ -79,21 +96,23 @@ export function StatusBar(props: StatusBarProps) {
           ) : null}
         </div>
       </div>
-      <div className="status-metric-row">
-        <div className="status-metric-card status-metric-card-wide" title={props.directoryStatus.path ?? 'not set'}>
-          <span className="status-label">Logs</span>
+      <div className="workspace-toolbar-group workspace-toolbar-group-secondary">
+        <div className="toolbar-pill toolbar-pill-wide" title={props.directoryStatus.path ?? 'not set'}>
+          <span className="toolbar-pill-label">Logs</span>
           <strong>{summarizePath(props.directoryStatus.path)}</strong>
         </div>
-        <div className="status-metric-card">
-          <span className="status-label">Watcher</span>
-          <strong>{props.watcherStatus.state}</strong>
+        <div className="toolbar-pill">
+          <span className="toolbar-pill-label">Watcher</span>
+          <strong>{props.watcherStatus.watchedChannels}</strong>
+          <span>{props.watcherStatus.state}</span>
         </div>
-        <div className="status-metric-card">
-          <span className="status-label">Queue</span>
+        <div className="toolbar-pill">
+          <span className="toolbar-pill-label">Queue</span>
           <strong>{props.apiStatus.queueLength}</strong>
+          <span>{props.apiStatus.activeJobs} active</span>
         </div>
-        <button className="ghost-button" onClick={props.onChooseDirectory} type="button">
-          Change directory
+        <button className="ghost-button toolbar-utility-button" onClick={props.onChooseDirectory} type="button">
+          Logs
         </button>
       </div>
     </section>
