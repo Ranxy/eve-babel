@@ -99,7 +99,6 @@ export function App() {
 
   const showForcedLlmSetup = state.directoryStatus.exists && !state.apiStatus.configured
   const selectedCharacter = state.characters.find((character) => character.characterId === state.config.selectedCharacterId) ?? state.characters[0] ?? null
-  const enabledChannelCount = state.channels.filter((channel) => channel.enabled).length
 
   if (isSettingsWindow) {
     return (
@@ -168,14 +167,8 @@ export function App() {
             </section>
           ) : (
             <div className={`workspace-surface ${isSidebarCollapsed ? 'sidebar-collapsed' : ''}`}>
-              <aside className={`panel channel-dock ${isSidebarCollapsed ? 'collapsed' : ''}`}>
-                {isSidebarCollapsed ? (
-                  <div className="channel-dock-collapsed-state">
-                    <span className="eyebrow">Channels</span>
-                    <strong>{enabledChannelCount}</strong>
-                    <span className="channel-dock-collapsed-meta">live</span>
-                  </div>
-                ) : (
+              {!isSidebarCollapsed ? (
+                <aside className="panel channel-dock">
                   <ChannelList
                     channels={state.channels}
                     selectedChannelName={selectedChannelName}
@@ -183,38 +176,38 @@ export function App() {
                     onToggleChannel={actions.setChannelEnabled}
                     onTogglePinned={actions.setChannelPinned}
                   />
-                )}
-                <div
-                  className="dock-menu-region"
-                  onPointerEnter={openDockMenu}
-                  onPointerLeave={scheduleDockMenuClose}
-                  ref={dockMenuRef}
-                >
-                  <button
-                    aria-expanded={isDockMenuOpen}
-                    aria-haspopup="menu"
-                    className="dock-menu-trigger"
-                    onClick={() => setIsDockMenuOpen((current) => !current)}
-                    onFocus={openDockMenu}
-                    type="button"
+                  <div
+                    className="dock-menu-region"
+                    onPointerEnter={openDockMenu}
+                    onPointerLeave={scheduleDockMenuClose}
+                    ref={dockMenuRef}
                   >
-                    ...
-                  </button>
-                  {isDockMenuOpen ? (
-                    <div className="dock-menu-popover" role="menu">
-                      <button className="dock-menu-item" onClick={actions.openSettingsWindow} type="button">
-                        Translation settings
-                      </button>
-                      <button className="dock-menu-item" onClick={actions.chooseLogDirectory} type="button">
-                        Change logs folder
-                      </button>
-                      <button className="dock-menu-item" onClick={actions.refreshScan} type="button">
-                        Refresh scan
-                      </button>
-                    </div>
-                  ) : null}
-                </div>
-              </aside>
+                    <button
+                      aria-expanded={isDockMenuOpen}
+                      aria-haspopup="menu"
+                      className="dock-menu-trigger"
+                      onClick={() => setIsDockMenuOpen((current) => !current)}
+                      onFocus={openDockMenu}
+                      type="button"
+                    >
+                      ...
+                    </button>
+                    {isDockMenuOpen ? (
+                      <div className="dock-menu-popover" role="menu">
+                        <button className="dock-menu-item" onClick={actions.openSettingsWindow} type="button">
+                          Translation settings
+                        </button>
+                        <button className="dock-menu-item" onClick={actions.chooseLogDirectory} type="button">
+                          Change logs folder
+                        </button>
+                        <button className="dock-menu-item" onClick={actions.refreshScan} type="button">
+                          Refresh scan
+                        </button>
+                      </div>
+                    ) : null}
+                  </div>
+                </aside>
+              ) : null}
               <MessageFeed
                 channels={state.channels}
                 messages={state.recentMessages}

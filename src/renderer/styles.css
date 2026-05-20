@@ -446,7 +446,7 @@ h2 {
 }
 
 .workspace-surface.sidebar-collapsed {
-  grid-template-columns: 64px minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1fr);
 }
 
 .channel-dock {
@@ -455,25 +455,6 @@ h2 {
   flex-direction: column;
   gap: 10px;
   padding: 10px;
-}
-
-.channel-dock.collapsed {
-  align-items: center;
-  justify-content: space-between;
-  padding: 10px 8px;
-}
-
-.channel-dock-collapsed-state {
-  width: 100%;
-  display: grid;
-  align-content: start;
-  justify-items: center;
-  gap: 6px;
-  text-align: center;
-}
-
-.channel-dock-collapsed-state strong {
-  font-size: 1.5rem;
 }
 
 .channel-sidebar,
