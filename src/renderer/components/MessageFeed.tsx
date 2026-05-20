@@ -119,7 +119,6 @@ export function MessageFeed(props: MessageFeedProps) {
             {visibleMessages.map((message) => {
               const showTranslation = shouldShowTranslation(message)
               const showTranslationStatus = selectedChannel?.enabled === true && message.messageType === 'chat'
-              const statusLabel = resolveStatusLabel(message)
 
               return (
                 <article
@@ -128,7 +127,6 @@ export function MessageFeed(props: MessageFeedProps) {
                 >
                   <div className="chat-message-meta">
                     <span className="chat-sender">{message.senderName}</span>
-                    {statusLabel ? <span className={`status-pill ${resolveStatusTone(message.translationStatus)}`}>{statusLabel}</span> : null}
                     <span>{formatTime(message.timestamp)}</span>
                   </div>
                   <div className="chat-bubble-stack">
@@ -184,46 +182,6 @@ function resolveTranslationCopy(message: ChatMessage): string {
   }
 
   return 'Waiting for translation.'
-}
-
-function resolveStatusLabel(message: ChatMessage): string {
-  if (message.translationStatus === 'translated') {
-    return 'Translated'
-  }
-
-  if (message.translationStatus === 'error') {
-    return 'Error'
-  }
-
-  if (message.translationStatus === 'translating') {
-    return 'Translating'
-  }
-
-  if (message.translationStatus === 'queued') {
-    return 'Queued'
-  }
-
-  if (message.translationStatus === 'skipped') {
-    return 'Skipped'
-  }
-
-  return ''
-}
-
-function resolveStatusTone(status: ChatMessage['translationStatus']): string {
-  if (status === 'translated') {
-    return 'status-translated'
-  }
-
-  if (status === 'error') {
-    return 'status-error'
-  }
-
-  if (status === 'queued' || status === 'translating') {
-    return 'status-translating'
-  }
-
-  return 'status-idle'
 }
 
 function resolveTranslationIndicatorTone(status: ChatMessage['translationStatus']): string {

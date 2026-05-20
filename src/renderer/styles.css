@@ -565,7 +565,6 @@ h2 {
 }
 
 .channel-pill,
-.status-pill,
 .chip {
   display: inline-flex;
   align-items: center;
@@ -579,25 +578,16 @@ h2 {
   font-weight: 700;
 }
 
-.chip-neutral,
-.status-idle {
+.chip-neutral {
   background: var(--accent-cold-soft);
   color: var(--accent-cold);
 }
 
-.status-translating,
-.status-queued {
-  background: rgba(164, 106, 44, 0.16);
-  color: var(--warn);
-}
-
-.status-translated,
 .chip-ok {
   background: rgba(44, 106, 70, 0.16);
   color: var(--ok);
 }
 
-.status-error,
 .chip-warn {
   background: rgba(182, 95, 85, 0.16);
   color: var(--danger);

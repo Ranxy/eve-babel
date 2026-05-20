@@ -23,6 +23,7 @@ import { ChatLogScanner, parseChatLogFilename, type ScanIndex } from './services
 import { ChatLogWatcher } from './services/chatLogWatcher'
 import { ConfigStore } from './services/configStore'
 import { EvePathResolver } from './services/evePathResolver'
+import { selectHistoryMessagesForTranslation } from './services/historyTranslationSelector'
 import { LlmClient } from './services/llmClient'
 import { LlmConfigStore, type LlmConfigRecord } from './services/llmConfigStore'
 import { MessageRepository } from './services/messageRepository'
@@ -31,6 +32,7 @@ import { WindowStateStore, type WindowKind, type WindowStateSnapshot } from './s
 
 const currentDirectory = dirname(fileURLToPath(import.meta.url))
 const DEFAULT_CHANNEL_PAGE_SIZE = 10
+const HISTORY_TRANSLATION_BACKFILL_LIMIT = 10
 
 class EveBabelApp {
   private mainWindow: BrowserWindow | null = null
@@ -255,6 +257,11 @@ class EveBabelApp {
 
     this.config = this.mergeAppConfig(await this.configStore.setChannelEnabled(characterId, channelName, enabled))
     this.channelRegistry.setChannels(this.scanIndex.channelsByCharacter, this.config.enabledChannels, this.config.pinnedChannels)
+
+    if (enabled) {
+      await this.enqueueChannelHistoryTranslations(characterId, channelName)
+    }
+
     this.publishChannels()
     return this.getBootstrapData()
   }
@@ -284,7 +291,7 @@ class EveBabelApp {
     await this.translationQueue.refreshConfiguration(this.config)
 
     if (this.translationQueue.getStatus().configured) {
-      await this.enqueueEligibleTranslations(this.messageRepository.getRecentMessages(this.characterRegistry.getSelectedCharacterId()))
+      await this.enqueueHistoryTranslationsForEnabledChannels(this.characterRegistry.getSelectedCharacterId())
     }
 
     this.publishStatus()
@@ -325,7 +332,7 @@ class EveBabelApp {
 
     const deduplicatedMessages = await this.messageRepository.upsertMessages(allMessages)
     this.publishMessages(deduplicatedMessages)
-    await this.enqueueEligibleTranslations(deduplicatedMessages)
+    await this.enqueueHistoryTranslationsForEnabledChannels(this.characterRegistry.getSelectedCharacterId())
   }
 
   private async handleWatcherMessages(messages: ChatMessage[]): Promise<void> {
@@ -403,6 +410,34 @@ class EveBabelApp {
 
       await this.translationQueue.enqueue(message, this.config)
     }
+  }
+
+  private async enqueueHistoryTranslationsForEnabledChannels(characterId: string | null): Promise<void> {
+    if (!characterId || !this.translationQueue.getStatus().configured) {
+      return
+    }
+
+    const enabledChannels = this.config.enabledChannels[characterId] ?? []
+
+    for (const channelName of enabledChannels) {
+      await this.enqueueChannelHistoryTranslations(characterId, channelName)
+    }
+  }
+
+  private async enqueueChannelHistoryTranslations(characterId: string, channelName: string): Promise<void> {
+    if (!this.translationQueue.getStatus().configured || !this.isChannelEnabled(characterId, channelName)) {
+      return
+    }
+
+    const recentMessages = this.messageRepository.getChannelMessages(
+      characterId,
+      channelName,
+      HISTORY_TRANSLATION_BACKFILL_LIMIT
+    ).messages
+
+    const untranslatedMessages = selectHistoryMessagesForTranslation(recentMessages, HISTORY_TRANSLATION_BACKFILL_LIMIT)
+
+    await this.enqueueEligibleTranslations(untranslatedMessages)
   }
 
   private publishMessages(messages?: ChatMessage[]): void {
