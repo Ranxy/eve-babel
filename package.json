@@ -1,0 +1,32 @@
+{
+  "name": "eve-babel",
+  "version": "0.1.0",
+  "description": "Windows-first EVE Online chat translation desktop app",
+  "private": true,
+  "type": "module",
+  "main": "out/main/main.js",
+  "scripts": {
+    "dev": "electron-vite dev",
+    "build": "electron-vite build",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "chokidar": "^5.0.0",
+    "electron": "^42.2.0",
+    "react": "^19.2.6",
+    "react-dom": "^19.2.6",
+    "sql.js": "^1.13.0"
+  },
+  "devDependencies": {
+    "@types/node": "^25.9.1",
+    "@types/react": "^19.2.15",
+    "@types/react-dom": "^19.2.3",
+    "@types/sql.js": "^1.4.9",
+    "@vitejs/plugin-react": "^5.2.0",
+    "electron-vite": "^5.0.0",
+    "typescript": "^6.0.3",
+    "vite": "^7.1.10",
+    "vitest": "^3.2.4"
+  }
+}
