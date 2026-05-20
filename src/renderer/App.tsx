@@ -124,6 +124,7 @@ export function App() {
             config={state.config}
             forceLlmSetup={showForcedLlmSetup}
             onCancelQueuedTranslations={actions.cancelQueuedTranslations}
+            onOpenLlmDebugFolder={actions.openLlmDebugFolder}
             onSave={actions.updateSettings}
           />
         </main>

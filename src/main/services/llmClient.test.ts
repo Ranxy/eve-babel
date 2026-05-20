@@ -8,6 +8,7 @@ const baseConfig: AppConfig = {
   selectedCharacterId: '9001',
   enabledChannels: {},
   pinnedChannels: {},
+  llmDebugEnabled: false,
   targetLanguage: 'zh-CN',
   translationPrompt: 'Translate into {{targetLanguage}}.',
   apiBaseUrl: 'https://example.com/v1',
@@ -40,15 +41,17 @@ describe('LlmClient', () => {
   it('parses structured batch translations from JSON code fences', async () => {
     const fetchMock = vi.fn().mockResolvedValue({
       ok: true,
-      json: async () => ({
-        choices: [
-          {
-            message: {
-              content: '```json\n{"translations":[{"messageId":"m-1","translatedText":"你好"},{"messageId":"m-2","translatedText":"再见"}]}\n```'
+      status: 200,
+      text: async () =>
+        JSON.stringify({
+          choices: [
+            {
+              message: {
+                content: '```json\n{"translations":[{"messageId":"m-1","translatedText":"你好"},{"messageId":"m-2","translatedText":"再见"}]}\n```'
+              }
             }
-          }
-        ]
-      })
+          ]
+        })
     })
     vi.stubGlobal('fetch', fetchMock)
 
@@ -79,5 +82,51 @@ describe('LlmClient', () => {
       expect.objectContaining({ messageId: 'm-1', messageText: 'Hello' }),
       expect.objectContaining({ messageId: 'm-2', messageText: 'Bye' })
     ])
+  })
+
+  it('logs request and response payloads when LLM debugger is enabled', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      text: async () => JSON.stringify({
+        choices: [
+          {
+            message: {
+              content: '{"translations":[{"messageId":"m-1","translatedText":"你好"}]}'
+            }
+          }
+        ]
+      })
+    })
+    const debugLogger = {
+      logExchange: vi.fn().mockResolvedValue(undefined)
+    }
+    vi.stubGlobal('fetch', fetchMock)
+
+    const client = new LlmClient(debugLogger as never)
+    await client.translateMessages(
+      [createMessage('m-1', 'Hello')],
+      {
+        apiKey: 'token',
+        config: {
+          ...baseConfig,
+          llmDebugEnabled: true
+        }
+      }
+    )
+
+    expect(debugLogger.logExchange).toHaveBeenCalledWith(
+      expect.objectContaining({
+        request: expect.objectContaining({
+          headers: expect.objectContaining({ Authorization: 'Bearer [redacted]' })
+        }),
+        response: expect.objectContaining({
+          status: 200,
+          ok: true,
+          bodyText: expect.stringContaining('translations')
+        }),
+        error: null
+      })
+    )
   })
 })

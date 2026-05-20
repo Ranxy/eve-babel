@@ -37,6 +37,7 @@ const emptyState: AppStoreState = {
     selectedCharacterId: null,
     enabledChannels: {},
     pinnedChannels: {},
+    llmDebugEnabled: false,
     targetLanguage: DEFAULT_TARGET_LANGUAGE,
     translationPrompt: DEFAULT_TRANSLATION_PROMPT,
     apiBaseUrl: 'https://api.openai.com/v1',
@@ -294,6 +295,7 @@ export function useAppStore() {
     state,
     actions: {
       cancelQueuedTranslations: () => runAction(window.eveBabel.cancelQueuedTranslations()),
+      openLlmDebugFolder: () => window.eveBabel.openLlmDebugFolder(),
       refreshScan: () => runAction(window.eveBabel.refreshScan()),
       chooseLogDirectory: () => runAction(window.eveBabel.chooseLogDirectory()),
       openSettingsWindow: () => window.eveBabel.openSettingsWindow(),

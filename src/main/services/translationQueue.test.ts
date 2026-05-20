@@ -8,6 +8,7 @@ const baseConfig: AppConfig = {
   selectedCharacterId: '9001',
   enabledChannels: {},
   pinnedChannels: {},
+  llmDebugEnabled: false,
   targetLanguage: 'zh-CN',
   translationPrompt: 'Translate into {{targetLanguage}}.',
   apiBaseUrl: 'https://example.com/v1',

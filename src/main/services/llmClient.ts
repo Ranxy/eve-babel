@@ -1,4 +1,8 @@
+import { randomUUID } from 'node:crypto'
+
 import { DEFAULT_TRANSLATION_PROMPT, type AppConfig, type ChatMessage } from '../../shared/types'
+import type { LlmDebugLogEntry } from './llmDebugLogger'
+import { LlmDebugLogger } from './llmDebugLogger'
 
 interface LlmClientOptions {
   apiKey: string
@@ -13,78 +17,120 @@ interface TranslationResponsePayload {
 }
 
 export class LlmClient {
+  constructor(private readonly debugLogger: LlmDebugLogger | null = null) {}
+
   async translateMessages(messages: ChatMessage[], options: LlmClientOptions): Promise<Map<string, string>> {
     if (messages.length === 0) {
       return new Map()
     }
 
-    const response = await fetch(`${options.config.apiBaseUrl.replace(/\/$/u, '')}/chat/completions`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${options.apiKey}`
-      },
-      body: JSON.stringify({
-        model: options.config.modelName,
-        temperature: 0.1,
-        messages: [
-          {
-            role: 'system',
-            content: buildBatchTranslationPrompt(options.config)
-          },
-          {
-            role: 'user',
-            content: JSON.stringify(
-              {
-                targetLanguage: options.config.targetLanguage,
-                messages: messages.map((message) => ({
-                  messageId: message.messageId,
-                  timestamp: message.timestamp,
-                  senderName: message.senderName,
-                  messageText: message.messageText
-                }))
-              },
-              null,
-              2
-            )
-          }
-        ]
+    const requestId = randomUUID()
+    const requestUrl = `${options.config.apiBaseUrl.replace(/\/$/u, '')}/chat/completions`
+    const requestBody = {
+      model: options.config.modelName,
+      temperature: 0.1,
+      messages: [
+        {
+          role: 'system',
+          content: buildBatchTranslationPrompt(options.config)
+        },
+        {
+          role: 'user',
+          content: JSON.stringify(
+            {
+              targetLanguage: options.config.targetLanguage,
+              messages: messages.map((message) => ({
+                messageId: message.messageId,
+                timestamp: message.timestamp,
+                senderName: message.senderName,
+                messageText: message.messageText
+              }))
+            },
+            null,
+            2
+          )
+        }
+      ]
+    }
+
+    let responseStatus: number | null = null
+    let responseOk: boolean | null = null
+    let responseBodyText: string | null = null
+    let responseBody: unknown = null
+    let requestError: Error | null = null
+
+    try {
+      const response = await fetch(requestUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${options.apiKey}`
+        },
+        body: JSON.stringify(requestBody)
       })
-    })
 
-    if (!response.ok) {
-      throw new Error(`Translation request failed with ${response.status}`)
-    }
+      responseStatus = response.status
+      responseOk = response.ok
+      responseBodyText = await response.text()
+      responseBody = parseJsonSafely(responseBodyText)
 
-    const payload = (await response.json()) as {
-      choices?: Array<{ message?: { content?: string | Array<{ type?: string; text?: string }> } }>
-    }
-
-    const content = normalizeMessageContent(payload.choices?.[0]?.message?.content)
-    if (!content) {
-      throw new Error('Translation response did not contain text')
-    }
-
-    const parsed = parseTranslationResponse(content)
-    const translations = new Map<string, string>()
-    const expectedMessageIds = new Set(messages.map((message) => message.messageId))
-
-    for (const translation of parsed.translations ?? []) {
-      const messageId = translation.messageId?.trim()
-      const translatedText = translation.translatedText?.trim()
-
-      if (!messageId || !translatedText || !expectedMessageIds.has(messageId)) {
-        continue
+      if (!response.ok) {
+        throw new Error(`Translation request failed with ${response.status}`)
       }
 
-      translations.set(messageId, translatedText)
-    }
+      const payload = responseBody as {
+        choices?: Array<{ message?: { content?: string | Array<{ type?: string; text?: string }> } }>
+      }
 
-    if (translations.size !== messages.length) {
-      throw new Error('Translation response did not contain all requested messages')
-    }
+      const content = normalizeMessageContent(payload.choices?.[0]?.message?.content)
+      if (!content) {
+        throw new Error('Translation response did not contain text')
+      }
 
-    return translations
+      const parsed = parseTranslationResponse(content)
+      const translations = new Map<string, string>()
+      const expectedMessageIds = new Set(messages.map((message) => message.messageId))
+
+      for (const translation of parsed.translations ?? []) {
+        const messageId = translation.messageId?.trim()
+        const translatedText = translation.translatedText?.trim()
+
+        if (!messageId || !translatedText || !expectedMessageIds.has(messageId)) {
+          continue
+        }
+
+        translations.set(messageId, translatedText)
+      }
+
+      if (translations.size !== messages.length) {
+        throw new Error('Translation response did not contain all requested messages')
+      }
+
+      return translations
+    } catch (error) {
+      requestError = error instanceof Error ? error : new Error('Unknown translation error')
+      throw requestError
+    } finally {
+      await this.writeDebugLogIfEnabled(options.config, {
+        requestId,
+        createdAt: new Date().toISOString(),
+        request: {
+          url: requestUrl,
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: 'Bearer [redacted]'
+          },
+          body: requestBody
+        },
+        response: {
+          status: responseStatus,
+          ok: responseOk,
+          bodyText: responseBodyText,
+          body: responseBody
+        },
+        error: requestError ? { message: requestError.message } : null
+      })
+    }
   }
 
   async translateText(text: string, options: LlmClientOptions): Promise<string> {
@@ -113,6 +159,14 @@ export class LlmClient {
     }
 
     return translatedText
+  }
+
+  private async writeDebugLogIfEnabled(config: AppConfig, entry: LlmDebugLogEntry): Promise<void> {
+    if (!config.llmDebugEnabled || !this.debugLogger) {
+      return
+    }
+
+    await this.debugLogger.logExchange(entry)
   }
 }
 
@@ -161,5 +215,17 @@ function parseTranslationResponse(content: string): TranslationResponsePayload {
     }
 
     return JSON.parse(normalized.slice(objectStart, objectEnd + 1)) as TranslationResponsePayload
+  }
+}
+
+function parseJsonSafely(value: string | null): unknown {
+  if (!value) {
+    return null
+  }
+
+  try {
+    return JSON.parse(value) as unknown
+  } catch {
+    return null
   }
 }

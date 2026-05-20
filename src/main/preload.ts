@@ -8,6 +8,7 @@ const api: EveBabelApi = {
     return ipcRenderer.invoke('app:getChannelMessages', channelName, before ?? null, limit)
   },
   cancelQueuedTranslations: () => ipcRenderer.invoke('app:cancelQueuedTranslations'),
+  openLlmDebugFolder: () => ipcRenderer.invoke('app:openLlmDebugFolder'),
   refreshScan: () => ipcRenderer.invoke('app:refreshScan'),
   chooseLogDirectory: () => ipcRenderer.invoke('app:chooseLogDirectory'),
   openSettingsWindow: () => ipcRenderer.invoke('app:openSettingsWindow'),

@@ -6,6 +6,7 @@ export interface IpcController {
   getBootstrapData: () => Promise<BootstrapPayload>
   getChannelMessages: (channelName: string, before?: MessagePageCursor | null, limit?: number) => Promise<ChannelMessagePage>
   cancelQueuedTranslations: () => Promise<BootstrapPayload>
+  openLlmDebugFolder: () => Promise<void>
   refreshScan: () => Promise<BootstrapPayload>
   openSettingsWindow: () => Promise<void>
   setLogDirectory: (directory: string) => Promise<BootstrapPayload>
@@ -21,6 +22,7 @@ export function registerIpcRouter(controller: IpcController): void {
     return controller.getChannelMessages(channelName, before, limit)
   })
   ipcMain.handle('app:cancelQueuedTranslations', () => controller.cancelQueuedTranslations())
+  ipcMain.handle('app:openLlmDebugFolder', () => controller.openLlmDebugFolder())
   ipcMain.handle('app:refreshScan', () => controller.refreshScan())
   ipcMain.handle('app:openSettingsWindow', () => controller.openSettingsWindow())
   ipcMain.handle('app:setLogDirectory', (_event, directory: string) => controller.setLogDirectory(directory))

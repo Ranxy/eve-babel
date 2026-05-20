@@ -8,6 +8,7 @@ const DEFAULT_CONFIG: AppConfig = {
   selectedCharacterId: null,
   enabledChannels: {},
   pinnedChannels: {},
+  llmDebugEnabled: false,
   targetLanguage: DEFAULT_TARGET_LANGUAGE,
   translationPrompt: DEFAULT_TRANSLATION_PROMPT,
   apiBaseUrl: '',
@@ -24,6 +25,7 @@ function sanitizeConfig(input: Partial<AppConfig>): AppConfig {
       typeof input.selectedCharacterId === 'string' || input.selectedCharacterId === null ? input.selectedCharacterId : null,
     enabledChannels: sanitizeChannelMap(input.enabledChannels),
     pinnedChannels: sanitizeChannelMap(input.pinnedChannels),
+    llmDebugEnabled: typeof input.llmDebugEnabled === 'boolean' ? input.llmDebugEnabled : DEFAULT_CONFIG.llmDebugEnabled,
     targetLanguage: typeof input.targetLanguage === 'string' && isTargetLanguage(input.targetLanguage) ? input.targetLanguage : DEFAULT_CONFIG.targetLanguage,
     translationPrompt:
       typeof input.translationPrompt === 'string' && input.translationPrompt.trim().length > 0

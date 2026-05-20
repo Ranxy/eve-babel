@@ -7,6 +7,7 @@ interface SettingsPanelProps {
   apiStatus: ApiStatus
   forceLlmSetup?: boolean
   onCancelQueuedTranslations: () => void
+  onOpenLlmDebugFolder: () => void
   onSave: (update: { config: Partial<AppConfig>; apiKey?: string }) => void
 }
 
@@ -121,6 +122,20 @@ export function SettingsPanel(props: SettingsPanelProps) {
             <span className="settings-field-hint">Prevents backlog growth when many channels are active.</span>
           </label>
         ) : null}
+        <label className="settings-field settings-toggle-field">
+          <span className="settings-field-label">Enable LLM debugger</span>
+          <span className="settings-field-hint">
+            Save every LLM request payload and raw response into separate JSON files under the app data `llm-debug` folder.
+          </span>
+          <div className="settings-checkbox-row">
+            <input
+              checked={formState.llmDebugEnabled}
+              onChange={(event) => setFormState((current) => ({ ...current, llmDebugEnabled: event.target.checked }))}
+              type="checkbox"
+            />
+            <span>{formState.llmDebugEnabled ? 'Debugger enabled' : 'Debugger disabled'}</span>
+          </div>
+        </label>
         <label className="settings-field settings-field-wide">
           <span className="settings-field-label">Translation prompt</span>
           <textarea
@@ -148,6 +163,13 @@ export function SettingsPanel(props: SettingsPanelProps) {
         <button
           className="ghost-button"
           type="button"
+          onClick={props.onOpenLlmDebugFolder}
+        >
+          Open debug folder
+        </button>
+        <button
+          className="ghost-button"
+          type="button"
           disabled={props.apiStatus.queueLength === 0}
           onClick={props.onCancelQueuedTranslations}
         >
@@ -161,12 +183,14 @@ export function SettingsPanel(props: SettingsPanelProps) {
             props.onSave({
               config: props.forceLlmSetup
                 ? {
+                  llmDebugEnabled: formState.llmDebugEnabled,
                     targetLanguage: formState.targetLanguage,
                     translationPrompt: formState.translationPrompt,
                     apiBaseUrl: formState.apiBaseUrl.trim(),
                     modelName: formState.modelName.trim()
                   }
                 : {
+                  llmDebugEnabled: formState.llmDebugEnabled,
                     targetLanguage: formState.targetLanguage,
                     translationPrompt: formState.translationPrompt,
                     apiBaseUrl: formState.apiBaseUrl.trim(),
@@ -188,6 +212,7 @@ export function SettingsPanel(props: SettingsPanelProps) {
 
 function createFormState(config: AppConfig) {
   return {
+    llmDebugEnabled: config.llmDebugEnabled,
     targetLanguage: config.targetLanguage,
     translationPrompt: config.translationPrompt,
     apiBaseUrl: config.apiBaseUrl,

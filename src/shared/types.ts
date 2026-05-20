@@ -98,6 +98,7 @@ export interface AppConfig {
   selectedCharacterId: string | null
   enabledChannels: Record<string, string[]>
   pinnedChannels: Record<string, string[]>
+  llmDebugEnabled: boolean
   targetLanguage: TargetLanguage
   translationPrompt: string
   apiBaseUrl: string
@@ -154,6 +155,7 @@ export interface EveBabelApi {
   getBootstrapData: () => Promise<BootstrapPayload>
   getChannelMessages: (channelName: string, before?: MessagePageCursor | null, limit?: number) => Promise<ChannelMessagePage>
   cancelQueuedTranslations: () => Promise<BootstrapPayload>
+  openLlmDebugFolder: () => Promise<void>
   refreshScan: () => Promise<BootstrapPayload>
   chooseLogDirectory: () => Promise<BootstrapPayload>
   openSettingsWindow: () => Promise<void>

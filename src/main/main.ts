@@ -1,5 +1,5 @@
-import { app, BrowserWindow, Menu, nativeTheme, screen, type MenuItemConstructorOptions } from 'electron'
-import { readFile } from 'node:fs/promises'
+import { app, BrowserWindow, Menu, nativeTheme, screen, shell, type MenuItemConstructorOptions } from 'electron'
+import { mkdir, readFile } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 
@@ -24,6 +24,7 @@ import { ChatLogWatcher } from './services/chatLogWatcher'
 import { ConfigStore } from './services/configStore'
 import { EvePathResolver } from './services/evePathResolver'
 import { selectHistoryMessagesForTranslation } from './services/historyTranslationSelector'
+import { LlmDebugLogger } from './services/llmDebugLogger'
 import { LlmClient } from './services/llmClient'
 import { LlmConfigStore, type LlmConfigRecord } from './services/llmConfigStore'
 import { MessageRepository } from './services/messageRepository'
@@ -57,7 +58,7 @@ class EveBabelApp {
   private readonly characterRegistry = new CharacterRegistry()
   private readonly channelRegistry = new ChannelRegistry()
   private readonly translationQueue = new TranslationQueue(
-    new LlmClient(),
+    new LlmClient(new LlmDebugLogger(LlmDebugLogger.createDefaultDirectory(app.getPath('userData')))),
     this.llmConfigStore,
     this.messageRepository,
     {
@@ -79,6 +80,7 @@ class EveBabelApp {
     selectedCharacterId: null,
     enabledChannels: {},
     pinnedChannels: {},
+    llmDebugEnabled: false,
     targetLanguage: DEFAULT_TARGET_LANGUAGE,
     translationPrompt: DEFAULT_TRANSLATION_PROMPT,
     apiBaseUrl: '',
@@ -207,6 +209,16 @@ class EveBabelApp {
     await this.translationQueue.cancelQueued()
     this.publishStatus()
     return this.getBootstrapData()
+  }
+
+  async openLlmDebugFolder(): Promise<void> {
+    const directoryPath = LlmDebugLogger.createDefaultDirectory(app.getPath('userData'))
+    await mkdir(directoryPath, { recursive: true })
+
+    const errorMessage = await shell.openPath(directoryPath)
+    if (errorMessage) {
+      throw new Error(errorMessage)
+    }
   }
 
   async refreshScan(): Promise<BootstrapPayload> {
@@ -688,6 +700,7 @@ if (hasSingleInstanceLock) {
       getBootstrapData: () => eveBabelApp.getBootstrapData(),
       getChannelMessages: (channelName, before, limit) => eveBabelApp.getChannelMessages(channelName, before, limit),
       cancelQueuedTranslations: () => eveBabelApp.cancelQueuedTranslations(),
+      openLlmDebugFolder: () => eveBabelApp.openLlmDebugFolder(),
       refreshScan: () => eveBabelApp.refreshScan(),
       openSettingsWindow: () => eveBabelApp.openSettingsWindow(),
       setLogDirectory: (directory) => eveBabelApp.setLogDirectory(directory),
