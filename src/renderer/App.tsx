@@ -4,7 +4,7 @@ import { ChannelList } from './components/ChannelList'
 import { MessageFeed } from './components/MessageFeed'
 import { SettingsPanel } from './components/SettingsPanel'
 import { StatusBar } from './components/StatusBar'
-import { useAppStore } from './store/appStore'
+import { buildChannelStateKey, useAppStore } from './store/appStore'
 
 export function App() {
   const { state, actions } = useAppStore()
@@ -28,16 +28,18 @@ export function App() {
 
     let nextChannelName: string | null = null
 
-    for (let index = state.recentMessages.length - 1; index >= 0; index -= 1) {
-      const message = state.recentMessages[index]
-      if (state.channels.some((channel) => channel.channelName === message.channelName)) {
-        nextChannelName = message.channelName
-        break
-      }
-    }
+    nextChannelName = state.channels[0]?.channelName ?? null
 
     setSelectedChannelName(nextChannelName ?? state.channels[0]?.channelName ?? null)
-  }, [selectedChannelName, state.channels, state.recentMessages, state.config.selectedCharacterId])
+  }, [selectedChannelName, state.channels, state.config.selectedCharacterId])
+
+  useEffect(() => {
+    if (!selectedChannelName) {
+      return
+    }
+
+    void actions.loadChannelMessages(selectedChannelName)
+  }, [actions, selectedChannelName, state.config.selectedCharacterId])
 
   useEffect(() => {
     if (!isDockMenuOpen) {
@@ -99,6 +101,10 @@ export function App() {
 
   const showForcedLlmSetup = state.directoryStatus.exists && !state.apiStatus.configured
   const selectedCharacter = state.characters.find((character) => character.characterId === state.config.selectedCharacterId) ?? state.characters[0] ?? null
+  const selectedChannelState =
+    selectedCharacter && selectedChannelName
+      ? state.channelMessages[buildChannelStateKey(selectedCharacter.characterId, selectedChannelName)]
+      : undefined
 
   if (isSettingsWindow) {
     return (
@@ -210,7 +216,14 @@ export function App() {
               ) : null}
               <MessageFeed
                 channels={state.channels}
-                messages={state.recentMessages}
+                hasMoreHistory={selectedChannelState?.hasMore ?? false}
+                isLoadingMessages={selectedChannelState?.loading ?? false}
+                messages={selectedChannelState?.messages ?? []}
+                onLoadOlder={() => {
+                  if (selectedChannelName) {
+                    void actions.loadOlderChannelMessages(selectedChannelName)
+                  }
+                }}
                 selectedChannelName={selectedChannelName}
                 selectedCharacterLabel={selectedCharacter?.label ?? null}
               />

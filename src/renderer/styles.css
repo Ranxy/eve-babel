@@ -755,6 +755,15 @@ h2 {
   gap: 14px;
 }
 
+.history-indicator {
+  justify-self: center;
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: var(--accent-cold-soft);
+  color: var(--muted);
+  font-size: 0.74rem;
+}
+
 .chat-message {
   display: grid;
   gap: 10px;

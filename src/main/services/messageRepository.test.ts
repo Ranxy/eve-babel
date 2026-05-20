@@ -70,6 +70,35 @@ describe('MessageRepository', () => {
     expect(repository.getRecentMessages('9001')).toEqual([persistedMessage])
   })
 
+  it('persists translated messages across repository reloads', async () => {
+    const { repository, directoryPath } = await createRepository()
+    const repositoryPath = join(directoryPath, 'messages.sqlite')
+
+    await repository.upsertMessages([
+      createMessage({
+        translationStatus: 'translated',
+        translatedText: '已经翻译',
+        errorMessage: null
+      })
+    ])
+
+    const reloadedRepository = new MessageRepository(repositoryPath)
+    await reloadedRepository.load()
+
+    expect(reloadedRepository.getChannelMessages('9001', 'Local', 10)).toEqual({
+      characterId: '9001',
+      channelName: 'Local',
+      messages: [
+        expect.objectContaining({
+          messageId: 'message-1',
+          translationStatus: 'translated',
+          translatedText: '已经翻译'
+        })
+      ],
+      hasMore: false
+    })
+  })
+
   it('migrates legacy messages.json data into messages.sqlite on load', async () => {
     const directoryPath = await mkdtemp(join(tmpdir(), 'eve-babel-repository-legacy-'))
     tempDirectories.push(directoryPath)
@@ -115,5 +144,39 @@ describe('MessageRepository', () => {
       expect.objectContaining({ messageId: 'message-2' }),
       expect.objectContaining({ messageId: 'message-3' })
     ])
+  })
+
+  it('returns channel messages in pages from newest to oldest', async () => {
+    const { repository } = await createRepository()
+
+    await repository.upsertMessages([
+      createMessage({ messageId: 'message-1', timestamp: '2026-05-20T12:31:00' }),
+      createMessage({ messageId: 'message-2', timestamp: '2026-05-20T12:32:00' }),
+      createMessage({ messageId: 'message-3', timestamp: '2026-05-20T12:33:00' })
+    ])
+
+    const firstPage = repository.getChannelMessages('9001', 'Local', 2)
+
+    expect(firstPage).toEqual({
+      characterId: '9001',
+      channelName: 'Local',
+      messages: [
+        expect.objectContaining({ messageId: 'message-2' }),
+        expect.objectContaining({ messageId: 'message-3' })
+      ],
+      hasMore: true
+    })
+
+    const secondPage = repository.getChannelMessages('9001', 'Local', 2, {
+      timestamp: firstPage.messages[0].timestamp,
+      messageId: firstPage.messages[0].messageId
+    })
+
+    expect(secondPage).toEqual({
+      characterId: '9001',
+      channelName: 'Local',
+      messages: [expect.objectContaining({ messageId: 'message-1' })],
+      hasMore: false
+    })
   })
 })

@@ -1,17 +1,26 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 
 import {
   DEFAULT_TARGET_LANGUAGE,
   DEFAULT_TRANSLATION_PROMPT,
   type AppSettingsUpdate,
   type BootstrapPayload,
+  type ChannelMessagePage,
   type ChatMessage,
   type ChannelSummary
 } from '../../shared/types'
 
+const DEFAULT_CHANNEL_PAGE_SIZE = 10
+
+interface LoadedChannelMessages extends ChannelMessagePage {
+  loading: boolean
+  loaded: boolean
+}
+
 interface AppStoreState extends BootstrapPayload {
   loading: boolean
   error: string | null
+  channelMessages: Record<string, LoadedChannelMessages>
 }
 
 const emptyState: AppStoreState = {
@@ -51,11 +60,18 @@ const emptyState: AppStoreState = {
     activeJobs: 0,
     lastSuccessAt: null,
     lastError: null
-  }
+  },
+  channelMessages: {}
+}
+
+export function buildChannelStateKey(characterId: string, channelName: string): string {
+  return `${characterId}::${channelName}`
 }
 
 export function useAppStore() {
   const [state, setState] = useState<AppStoreState>(emptyState)
+  const stateRef = useRef(state)
+  stateRef.current = state
 
   useEffect(() => {
     let disposed = false
@@ -68,6 +84,7 @@ export function useAppStore() {
       setState((currentState) => ({
         ...currentState,
         ...payload,
+        channelMessages: retainChannelMessages(currentState.channelMessages, payload.config.selectedCharacterId),
         loading: false,
         error: null
       }))
@@ -90,7 +107,8 @@ export function useAppStore() {
     const disposeMessages = window.eveBabel.onMessagesUpsert((messages) => {
       setState((currentState) => ({
         ...currentState,
-        recentMessages: mergeMessages(currentState.recentMessages, messages)
+        recentMessages: mergeMessages(currentState.recentMessages, messages),
+        channelMessages: mergeChannelMessages(currentState.channelMessages, messages)
       }))
     })
 
@@ -128,6 +146,7 @@ export function useAppStore() {
       setState((currentState) => ({
         ...currentState,
         ...payload,
+        channelMessages: retainChannelMessages(currentState.channelMessages, payload.config.selectedCharacterId),
         loading: false,
         error: null
       }))
@@ -136,6 +155,137 @@ export function useAppStore() {
         ...currentState,
         loading: false,
         error: error instanceof Error ? error.message : 'Action failed'
+      }))
+    }
+  }
+
+  const loadChannelMessages = async (channelName: string) => {
+    const selectedCharacterId = stateRef.current.config.selectedCharacterId
+    if (!selectedCharacterId) {
+      return
+    }
+
+    const key = buildChannelStateKey(selectedCharacterId, channelName)
+    const existingPage = stateRef.current.channelMessages[key]
+    if (existingPage?.loaded || existingPage?.loading) {
+      return
+    }
+
+    setState((currentState) => ({
+      ...currentState,
+      channelMessages: {
+        ...currentState.channelMessages,
+        [key]: {
+          characterId: selectedCharacterId,
+          channelName,
+          messages: existingPage?.messages ?? [],
+          hasMore: existingPage?.hasMore ?? false,
+          loading: true,
+          loaded: false
+        }
+      }
+    }))
+
+    try {
+      const page = await window.eveBabel.getChannelMessages(channelName, null, DEFAULT_CHANNEL_PAGE_SIZE)
+      const pageKey = buildChannelStateKey(page.characterId, page.channelName)
+
+      setState((currentState) => ({
+        ...currentState,
+        channelMessages: {
+          ...currentState.channelMessages,
+          [pageKey]: {
+            ...page,
+            loading: false,
+            loaded: true
+          }
+        },
+        error: null
+      }))
+    } catch (error) {
+      setState((currentState) => ({
+        ...currentState,
+        channelMessages: {
+          ...currentState.channelMessages,
+          [key]: {
+            characterId: selectedCharacterId,
+            channelName,
+            messages: existingPage?.messages ?? [],
+            hasMore: existingPage?.hasMore ?? false,
+            loading: false,
+            loaded: false
+          }
+        },
+        error: error instanceof Error ? error.message : 'Failed to load channel messages'
+      }))
+    }
+  }
+
+  const loadOlderChannelMessages = async (channelName: string) => {
+    const selectedCharacterId = stateRef.current.config.selectedCharacterId
+    if (!selectedCharacterId) {
+      return
+    }
+
+    const key = buildChannelStateKey(selectedCharacterId, channelName)
+    const existingPage = stateRef.current.channelMessages[key]
+    if (!existingPage || existingPage.loading || !existingPage.loaded || !existingPage.hasMore || existingPage.messages.length === 0) {
+      return
+    }
+
+    const oldestMessage = existingPage.messages[0]
+
+    setState((currentState) => ({
+      ...currentState,
+      channelMessages: {
+        ...currentState.channelMessages,
+        [key]: {
+          ...existingPage,
+          loading: true
+        }
+      }
+    }))
+
+    try {
+      const page = await window.eveBabel.getChannelMessages(
+        channelName,
+        {
+          timestamp: oldestMessage.timestamp,
+          messageId: oldestMessage.messageId
+        },
+        DEFAULT_CHANNEL_PAGE_SIZE
+      )
+      const pageKey = buildChannelStateKey(page.characterId, page.channelName)
+
+      setState((currentState) => {
+        const currentPage = currentState.channelMessages[pageKey] ?? existingPage
+
+        return {
+          ...currentState,
+          channelMessages: {
+            ...currentState.channelMessages,
+            [pageKey]: {
+              ...currentPage,
+              ...page,
+              messages: mergeMessages(page.messages, currentPage.messages, 0),
+              loading: false,
+              loaded: true
+            }
+          },
+          error: null
+        }
+      })
+    } catch (error) {
+      setState((currentState) => ({
+        ...currentState,
+        channelMessages: {
+          ...currentState.channelMessages,
+          [key]: {
+            ...existingPage,
+            loading: false
+          }
+        },
+        error: error instanceof Error ? error.message : 'Failed to load older channel messages'
       }))
     }
   }
@@ -150,21 +300,76 @@ export function useAppStore() {
       selectCharacter: (characterId: string) => runAction(window.eveBabel.selectCharacter(characterId)),
       setChannelEnabled: (channelName: string, enabled: boolean) => runAction(window.eveBabel.setChannelEnabled(channelName, enabled)),
       setChannelPinned: (channelName: string, pinned: boolean) => runAction(window.eveBabel.setChannelPinned(channelName, pinned)),
-      updateSettings: (update: AppSettingsUpdate) => runAction(window.eveBabel.updateSettings(update))
+      updateSettings: (update: AppSettingsUpdate) => runAction(window.eveBabel.updateSettings(update)),
+      loadChannelMessages,
+      loadOlderChannelMessages
     }
   }
 }
 
-function mergeMessages(currentMessages: ChatMessage[], nextMessages: ChatMessage[]): ChatMessage[] {
+function retainChannelMessages(
+  channelMessages: Record<string, LoadedChannelMessages>,
+  selectedCharacterId: string | null
+): Record<string, LoadedChannelMessages> {
+  if (!selectedCharacterId) {
+    return {}
+  }
+
+  return Object.fromEntries(
+    Object.entries(channelMessages).filter(([key]) => key.startsWith(`${selectedCharacterId}::`))
+  )
+}
+
+function mergeChannelMessages(
+  channelMessages: Record<string, LoadedChannelMessages>,
+  messages: ChatMessage[]
+): Record<string, LoadedChannelMessages> {
+  if (messages.length === 0 || Object.keys(channelMessages).length === 0) {
+    return channelMessages
+  }
+
+  const groupedMessages = new Map<string, ChatMessage[]>()
+
+  for (const message of messages) {
+    const key = buildChannelStateKey(message.characterId, message.channelName)
+    const currentMessages = groupedMessages.get(key) ?? []
+    currentMessages.push(message)
+    groupedMessages.set(key, currentMessages)
+  }
+
+  let hasChanges = false
+  const nextChannelMessages: Record<string, LoadedChannelMessages> = { ...channelMessages }
+
+  for (const [key, page] of Object.entries(channelMessages)) {
+    const nextMessages = groupedMessages.get(key)
+    if (!nextMessages || nextMessages.length === 0) {
+      continue
+    }
+
+    nextChannelMessages[key] = {
+      ...page,
+      messages: mergeMessages(page.messages, nextMessages, 0)
+    }
+    hasChanges = true
+  }
+
+  return hasChanges ? nextChannelMessages : channelMessages
+}
+
+function mergeMessages(currentMessages: ChatMessage[], nextMessages: ChatMessage[], maxMessages = 200): ChatMessage[] {
   const map = new Map(currentMessages.map((message) => [message.messageId, message]))
 
   for (const message of nextMessages) {
     map.set(message.messageId, message)
   }
 
-  return Array.from(map.values())
-    .sort((left, right) => left.timestamp.localeCompare(right.timestamp))
-    .slice(-200)
+  const mergedMessages = Array.from(map.values()).sort((left, right) => left.timestamp.localeCompare(right.timestamp))
+
+  if (!maxMessages || maxMessages < 1) {
+    return mergedMessages
+  }
+
+  return mergedMessages.slice(-maxMessages)
 }
 
 export type { AppStoreState, ChannelSummary }

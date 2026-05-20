@@ -57,46 +57,57 @@ async function readHeaderMetadata(filePath: string): Promise<HeaderMetadata> {
 export class ChatLogScanner {
   async scanDirectory(directoryPath: string): Promise<ScanIndex> {
     const entries = await readdir(directoryPath, { withFileTypes: true })
-    const sessionsByCharacter = new Map<string, ChatSessionFile[]>()
-    const listenerByCharacter = new Map<string, string>()
+    const sessionsByCharacter: Record<string, ChatSessionFile[]> = {}
 
     for (const entry of entries) {
       if (!entry.isFile() || !entry.name.toLowerCase().endsWith('.txt')) {
         continue
       }
 
-      const filenameParts = parseChatLogFilename(entry.name)
-      if (!filenameParts) {
+      const absolutePath = join(directoryPath, entry.name)
+      const session = await this.hydrateSessionFile(absolutePath)
+      if (!session) {
         continue
       }
 
-      const absolutePath = join(directoryPath, entry.name)
-      const headerMetadata = await readHeaderMetadata(absolutePath)
-
-      if (headerMetadata.listenerName) {
-        listenerByCharacter.set(filenameParts.characterId, headerMetadata.listenerName)
-      }
-
-      const session: ChatSessionFile = {
-        absolutePath,
-        channelName: headerMetadata.channelName ?? filenameParts.channelName,
-        characterId: filenameParts.characterId,
-        sessionStarted: headerMetadata.sessionStarted ?? filenameParts.sessionStarted,
-        lastReadOffset: 0,
-        isActive: false,
-        listenerName: headerMetadata.listenerName
-      }
-
-      const sessions = sessionsByCharacter.get(session.characterId) ?? []
+      const sessions = sessionsByCharacter[session.characterId] ?? []
       sessions.push(session)
-      sessionsByCharacter.set(session.characterId, sessions)
+      sessionsByCharacter[session.characterId] = sessions
     }
 
+    return this.buildIndexFromSessions(sessionsByCharacter)
+  }
+
+  async hydrateSessionFile(filePath: string): Promise<ChatSessionFile | null> {
+    const fileName = filePath.split(/\\|\//u).at(-1)
+    if (!fileName) {
+      return null
+    }
+
+    const filenameParts = parseChatLogFilename(fileName)
+    if (!filenameParts) {
+      return null
+    }
+
+    const headerMetadata = await readHeaderMetadata(filePath)
+
+    return {
+      absolutePath: filePath,
+      channelName: headerMetadata.channelName ?? filenameParts.channelName,
+      characterId: filenameParts.characterId,
+      sessionStarted: headerMetadata.sessionStarted ?? filenameParts.sessionStarted,
+      lastReadOffset: 0,
+      isActive: false,
+      listenerName: headerMetadata.listenerName
+    }
+  }
+
+  buildIndexFromSessions(sessionsByCharacter: Record<string, ChatSessionFile[]>, characterLabels: Record<string, string> = {}): ScanIndex {
     const characters: CharacterSummary[] = []
     const channelsByCharacter: Record<string, ChannelSummary[]> = {}
     const sessionIndex: Record<string, ChatSessionFile[]> = {}
 
-    for (const [characterId, sessions] of sessionsByCharacter.entries()) {
+    for (const [characterId, sessions] of Object.entries(sessionsByCharacter)) {
       const activeByChannel = new Map<string, ChatSessionFile>()
 
       for (const session of sessions) {
@@ -126,9 +137,19 @@ export class ChatLogScanner {
         }))
         .sort((left, right) => left.channelName.localeCompare(right.channelName))
 
+      let listenerName: string | null = null
+
+      for (let index = hydratedSessions.length - 1; index >= 0; index -= 1) {
+        const session = hydratedSessions[index]
+        if (session.listenerName) {
+          listenerName = session.listenerName
+          break
+        }
+      }
+
       characters.push({
         characterId,
-        label: listenerByCharacter.get(characterId) ?? characterId,
+        label: listenerName ?? characterLabels[characterId] ?? characterId,
         recentActivityAt: hydratedSessions.at(-1)?.sessionStarted ?? null,
         availableChannelCount: channelsByCharacter[characterId].length,
         logFileCount: hydratedSessions.length

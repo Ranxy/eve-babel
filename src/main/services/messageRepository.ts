@@ -4,7 +4,7 @@ import { dirname, join } from 'node:path'
 
 import initSqlJs, { type Database, type SqlJsStatic } from 'sql.js'
 
-import type { ChatMessage } from '../../shared/types'
+import type { ChannelMessagePage, ChatMessage, MessagePageCursor } from '../../shared/types'
 
 const require = createRequire(import.meta.url)
 
@@ -28,7 +28,7 @@ export class MessageRepository {
   private sqlite: SqlJsStatic | null = null
   private database: Database | null = null
 
-  constructor(private readonly filePath: string, private readonly maxMessages = 500) {}
+  constructor(private readonly filePath: string, private readonly maxMessages: number | null = null) {}
 
   async load(): Promise<void> {
     await mkdir(dirname(this.filePath), { recursive: true })
@@ -91,6 +91,70 @@ export class MessageRepository {
     statement.free()
 
     return messages.reverse()
+  }
+
+  getChannelMessages(
+    characterId: string,
+    channelName: string,
+    limit: number,
+    before?: MessagePageCursor
+  ): ChannelMessagePage {
+    const database = this.getDatabase()
+    const statement = before
+      ? database.prepare(`
+          SELECT *
+          FROM chat_messages
+          WHERE character_id = $characterId
+            AND channel_name = $channelName
+            AND (
+              timestamp < $beforeTimestamp
+              OR (timestamp = $beforeTimestamp AND message_id < $beforeMessageId)
+            )
+          ORDER BY timestamp DESC, message_id DESC
+          LIMIT $limitPlusOne
+        `)
+      : database.prepare(`
+          SELECT *
+          FROM chat_messages
+          WHERE character_id = $characterId
+            AND channel_name = $channelName
+          ORDER BY timestamp DESC, message_id DESC
+          LIMIT $limitPlusOne
+        `)
+
+    if (before) {
+      statement.bind({
+        $characterId: characterId,
+        $channelName: channelName,
+        $beforeTimestamp: before.timestamp,
+        $beforeMessageId: before.messageId,
+        $limitPlusOne: limit + 1
+      })
+    } else {
+      statement.bind({
+        $characterId: characterId,
+        $channelName: channelName,
+        $limitPlusOne: limit + 1
+      })
+    }
+
+    const rows: ChatMessage[] = []
+
+    while (statement.step()) {
+      rows.push(this.mapRowToMessage(statement.getAsObject() as StoredMessageRow))
+    }
+
+    statement.free()
+
+    const hasMore = rows.length > limit
+    const messages = (hasMore ? rows.slice(0, limit) : rows).reverse()
+
+    return {
+      characterId,
+      channelName,
+      messages,
+      hasMore
+    }
   }
 
   async upsertMessages(messages: ChatMessage[]): Promise<ChatMessage[]> {
@@ -262,6 +326,9 @@ export class MessageRepository {
       CREATE INDEX IF NOT EXISTS idx_chat_messages_character_time
       ON chat_messages (character_id, timestamp DESC);
 
+      CREATE INDEX IF NOT EXISTS idx_chat_messages_character_channel_time
+      ON chat_messages (character_id, channel_name, timestamp DESC, message_id DESC);
+
       CREATE INDEX IF NOT EXISTS idx_chat_messages_timestamp
       ON chat_messages (timestamp DESC);
     `)
@@ -335,6 +402,10 @@ export class MessageRepository {
   }
 
   private async pruneOldMessages(): Promise<void> {
+    if (!this.maxMessages || this.maxMessages < 1) {
+      return
+    }
+
     const database = this.getDatabase()
     database.run(
       `

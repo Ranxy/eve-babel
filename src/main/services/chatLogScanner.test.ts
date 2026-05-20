@@ -97,6 +97,7 @@ describe('ChatLogScanner', () => {
       {
         channelName: 'Local',
         enabled: false,
+        pinned: false,
         messageCount: 2,
         latestSessionStarted: '2026-05-20T13:00:00',
         sourceCharacterId: '9001'
@@ -104,5 +105,32 @@ describe('ChatLogScanner', () => {
     ])
     expect(result.sessionsByCharacter['9001'].filter((session) => session.isActive)).toHaveLength(1)
     expect(result.sessionsByCharacter['9001'].find((session) => session.isActive)?.absolutePath).toBe(localNewPath)
+  })
+
+  it('hydrates a single new session file for watcher-driven channel rollover', async () => {
+    const directoryPath = await createTempDirectory()
+    const rolloverPath = join(directoryPath, 'Alliance_20260520_140000_9001.txt')
+
+    await writeUtf16Log(
+      rolloverPath,
+      [
+        'Channel ID: 7',
+        'Channel Name: Alliance',
+        'Listener: Pilot One',
+        'Session started: 2026.05.20 14:00:00'
+      ].join('\r\n')
+    )
+
+    const scanner = new ChatLogScanner()
+    const session = await scanner.hydrateSessionFile(rolloverPath)
+
+    expect(session).toMatchObject({
+      absolutePath: rolloverPath,
+      channelName: 'Alliance',
+      characterId: '9001',
+      sessionStarted: '2026-05-20T14:00:00',
+      listenerName: 'Pilot One',
+      isActive: false
+    })
   })
 })

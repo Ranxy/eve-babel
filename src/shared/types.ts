@@ -64,6 +64,18 @@ export interface ChatMessage {
   errorMessage: string | null
 }
 
+export interface MessagePageCursor {
+  timestamp: string
+  messageId: string
+}
+
+export interface ChannelMessagePage {
+  characterId: string
+  channelName: string
+  messages: ChatMessage[]
+  hasMore: boolean
+}
+
 export interface TranslationJob {
   jobId: string
   messageId: string
@@ -135,6 +147,7 @@ export interface RendererEvents {
 
 export interface EveBabelApi {
   getBootstrapData: () => Promise<BootstrapPayload>
+  getChannelMessages: (channelName: string, before?: MessagePageCursor | null, limit?: number) => Promise<ChannelMessagePage>
   refreshScan: () => Promise<BootstrapPayload>
   chooseLogDirectory: () => Promise<BootstrapPayload>
   openSettingsWindow: () => Promise<void>

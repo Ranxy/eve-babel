@@ -1,9 +1,10 @@
 import { dialog, ipcMain } from 'electron'
 
-import type { AppSettingsUpdate, BootstrapPayload, ChatMessage, ChannelSummary } from '../../shared/types'
+import type { AppSettingsUpdate, BootstrapPayload, ChannelMessagePage, ChatMessage, ChannelSummary, MessagePageCursor } from '../../shared/types'
 
 export interface IpcController {
   getBootstrapData: () => Promise<BootstrapPayload>
+  getChannelMessages: (channelName: string, before?: MessagePageCursor | null, limit?: number) => Promise<ChannelMessagePage>
   refreshScan: () => Promise<BootstrapPayload>
   openSettingsWindow: () => Promise<void>
   setLogDirectory: (directory: string) => Promise<BootstrapPayload>
@@ -15,6 +16,9 @@ export interface IpcController {
 
 export function registerIpcRouter(controller: IpcController): void {
   ipcMain.handle('app:getBootstrapData', () => controller.getBootstrapData())
+  ipcMain.handle('app:getChannelMessages', (_event, channelName: string, before?: MessagePageCursor | null, limit?: number) => {
+    return controller.getChannelMessages(channelName, before, limit)
+  })
   ipcMain.handle('app:refreshScan', () => controller.refreshScan())
   ipcMain.handle('app:openSettingsWindow', () => controller.openSettingsWindow())
   ipcMain.handle('app:setLogDirectory', (_event, directory: string) => controller.setLogDirectory(directory))

@@ -1,9 +1,12 @@
-import { useEffect, useMemo, useRef } from 'react'
+import { useEffect, useRef } from 'react'
 
 import type { ChatMessage, ChannelSummary } from '../../shared/types'
 
 interface MessageFeedProps {
+  hasMoreHistory: boolean
+  isLoadingMessages: boolean
   messages: ChatMessage[]
+  onLoadOlder: () => void
   channels: ChannelSummary[]
   selectedChannelName: string | null
   selectedCharacterLabel: string | null
@@ -11,20 +14,66 @@ interface MessageFeedProps {
 
 export function MessageFeed(props: MessageFeedProps) {
   const messageFeedRef = useRef<HTMLDivElement | null>(null)
+  const previousChannelRef = useRef<string | null>(null)
+  const previousEdgeIdsRef = useRef<{ firstId: string | null; lastId: string | null }>({ firstId: null, lastId: null })
+  const historyAnchorRef = useRef<{ scrollHeight: number; scrollTop: number } | null>(null)
   const selectedChannel = props.channels.find((channel) => channel.channelName === props.selectedChannelName) ?? null
-  const visibleMessages = useMemo(
-    () => (props.selectedChannelName ? props.messages.filter((message) => message.channelName === props.selectedChannelName) : []),
-    [props.messages, props.selectedChannelName]
-  )
+  const visibleMessages = props.selectedChannelName ? props.messages : []
 
   useEffect(() => {
     const container = messageFeedRef.current
-    if (!container || !props.selectedChannelName || visibleMessages.length === 0) {
+    if (!container) {
       return
     }
 
-    container.scrollTop = container.scrollHeight
-  }, [props.selectedChannelName, visibleMessages.length, visibleMessages.at(-1)?.messageId])
+    const firstId = visibleMessages[0]?.messageId ?? null
+    const lastId = visibleMessages.at(-1)?.messageId ?? null
+    const channelChanged = previousChannelRef.current !== props.selectedChannelName
+
+    if (channelChanged) {
+      previousChannelRef.current = props.selectedChannelName
+      previousEdgeIdsRef.current = { firstId, lastId }
+
+      if (props.selectedChannelName && visibleMessages.length > 0) {
+        container.scrollTop = container.scrollHeight
+      }
+
+      return
+    }
+
+    if (historyAnchorRef.current) {
+      const anchor = historyAnchorRef.current
+      historyAnchorRef.current = null
+      container.scrollTop = anchor.scrollTop + (container.scrollHeight - anchor.scrollHeight)
+      previousEdgeIdsRef.current = { firstId, lastId }
+      return
+    }
+
+    const appendedNewMessage = previousEdgeIdsRef.current.lastId !== null && previousEdgeIdsRef.current.lastId !== lastId
+
+    if (appendedNewMessage && isNearBottom(container)) {
+      container.scrollTop = container.scrollHeight
+    }
+
+    previousEdgeIdsRef.current = { firstId, lastId }
+  }, [props.selectedChannelName, visibleMessages])
+
+  const handleScroll = () => {
+    const container = messageFeedRef.current
+    if (!container || !props.hasMoreHistory || props.isLoadingMessages || visibleMessages.length === 0) {
+      return
+    }
+
+    if (container.scrollTop > 48) {
+      return
+    }
+
+    historyAnchorRef.current = {
+      scrollHeight: container.scrollHeight,
+      scrollTop: container.scrollTop
+    }
+    props.onLoadOlder()
+  }
 
   return (
     <section className="panel message-panel">
@@ -51,55 +100,70 @@ export function MessageFeed(props: MessageFeedProps) {
           <span className="status-label">messages</span>
         </div>
       </div>
-      <div className="message-feed chat-thread" ref={messageFeedRef}>
+      <div className="message-feed chat-thread" onScroll={handleScroll} ref={messageFeedRef}>
         {!props.selectedChannelName ? (
           <div className="empty-state">Select a channel on the left to open its conversation stream.</div>
+        ) : props.isLoadingMessages && visibleMessages.length === 0 ? (
+          <div className="empty-state">Loading cached messages…</div>
         ) : visibleMessages.length === 0 ? (
           <div className="empty-state">This channel has no cached messages yet.</div>
         ) : (
-          visibleMessages.map((message) => {
-            const showTranslation = shouldShowTranslation(message)
-            const showTranslationStatus = selectedChannel?.enabled === true && message.messageType === 'chat'
-            const statusLabel = resolveStatusLabel(message)
+          <>
+            <div className="history-indicator">
+              {props.isLoadingMessages
+                ? 'Loading earlier cached messages…'
+                : props.hasMoreHistory
+                  ? 'Scroll upward to load earlier messages.'
+                  : 'Reached the start of cached history.'}
+            </div>
+            {visibleMessages.map((message) => {
+              const showTranslation = shouldShowTranslation(message)
+              const showTranslationStatus = selectedChannel?.enabled === true && message.messageType === 'chat'
+              const statusLabel = resolveStatusLabel(message)
 
-            return (
-              <article
-                className={`chat-message ${resolveMessageTone(message, props.selectedCharacterLabel)}`}
-                key={message.messageId}
-              >
-                <div className="chat-message-meta">
-                  <span className="chat-sender">{message.senderName}</span>
-                  {statusLabel ? <span className={`status-pill ${resolveStatusTone(message.translationStatus)}`}>{statusLabel}</span> : null}
-                  <span>{formatTime(message.timestamp)}</span>
-                </div>
-                <div className="chat-bubble-stack">
-                  <div className="chat-bubble chat-bubble-original">
-                    <span className="chat-section-label">Original</span>
-                    <div className="chat-bubble-body">
-                      <div className="chat-bubble-copy">{message.messageText}</div>
-                      {showTranslationStatus ? (
-                        <span
-                          aria-label={resolveTranslationIndicatorLabel(message.translationStatus)}
-                          className={`translation-indicator ${resolveTranslationIndicatorTone(message.translationStatus)}`}
-                          title={resolveTranslationIndicatorLabel(message.translationStatus)}
-                        />
-                      ) : null}
-                    </div>
+              return (
+                <article
+                  className={`chat-message ${resolveMessageTone(message, props.selectedCharacterLabel)}`}
+                  key={message.messageId}
+                >
+                  <div className="chat-message-meta">
+                    <span className="chat-sender">{message.senderName}</span>
+                    {statusLabel ? <span className={`status-pill ${resolveStatusTone(message.translationStatus)}`}>{statusLabel}</span> : null}
+                    <span>{formatTime(message.timestamp)}</span>
                   </div>
-                  {showTranslation ? (
-                    <div className="chat-bubble chat-bubble-translation">
-                      <span className="chat-section-label">Translation</span>
-                      {resolveTranslationCopy(message)}
+                  <div className="chat-bubble-stack">
+                    <div className="chat-bubble chat-bubble-original">
+                      <span className="chat-section-label">Original</span>
+                      <div className="chat-bubble-body">
+                        <div className="chat-bubble-copy">{message.messageText}</div>
+                        {showTranslationStatus ? (
+                          <span
+                            aria-label={resolveTranslationIndicatorLabel(message.translationStatus)}
+                            className={`translation-indicator ${resolveTranslationIndicatorTone(message.translationStatus)}`}
+                            title={resolveTranslationIndicatorLabel(message.translationStatus)}
+                          />
+                        ) : null}
+                      </div>
                     </div>
-                  ) : null}
-                </div>
-              </article>
-            )
-          })
+                    {showTranslation ? (
+                      <div className="chat-bubble chat-bubble-translation">
+                        <span className="chat-section-label">Translation</span>
+                        {resolveTranslationCopy(message)}
+                      </div>
+                    ) : null}
+                  </div>
+                </article>
+              )
+            })}
+          </>
         )}
       </div>
     </section>
   )
+}
+
+function isNearBottom(container: HTMLDivElement): boolean {
+  return container.scrollHeight - container.scrollTop - container.clientHeight <= 48
 }
 
 function shouldShowTranslation(message: ChatMessage): boolean {

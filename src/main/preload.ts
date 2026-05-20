@@ -1,9 +1,12 @@
 import { contextBridge, ipcRenderer } from 'electron'
 
-import type { AppSettingsUpdate, ChatMessage, ChannelSummary, EveBabelApi } from '../shared/types'
+import type { AppSettingsUpdate, ChatMessage, ChannelSummary, EveBabelApi, MessagePageCursor } from '../shared/types'
 
 const api: EveBabelApi = {
   getBootstrapData: () => ipcRenderer.invoke('app:getBootstrapData'),
+  getChannelMessages: (channelName: string, before?: MessagePageCursor | null, limit?: number) => {
+    return ipcRenderer.invoke('app:getChannelMessages', channelName, before ?? null, limit)
+  },
   refreshScan: () => ipcRenderer.invoke('app:refreshScan'),
   chooseLogDirectory: () => ipcRenderer.invoke('app:chooseLogDirectory'),
   openSettingsWindow: () => ipcRenderer.invoke('app:openSettingsWindow'),

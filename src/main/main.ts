@@ -9,9 +9,11 @@ import {
   type AppConfig,
   type AppSettingsUpdate,
   type BootstrapPayload,
+  type ChannelMessagePage,
   type ChatMessage,
   type ChannelSummary,
-  type ChatSessionFile
+  type ChatSessionFile,
+  type MessagePageCursor
 } from '../shared/types'
 import { registerIpcRouter, emitChannels, emitMessages, emitStatus } from './ipc/ipcRouter'
 import { ChannelRegistry } from './services/channelRegistry'
@@ -28,6 +30,7 @@ import { TranslationQueue } from './services/translationQueue'
 import { WindowStateStore, type WindowKind, type WindowStateSnapshot } from './services/windowStateStore'
 
 const currentDirectory = dirname(fileURLToPath(import.meta.url))
+const DEFAULT_CHANNEL_PAGE_SIZE = 10
 
 class EveBabelApp {
   private mainWindow: BrowserWindow | null = null
@@ -179,6 +182,25 @@ class EveBabelApp {
     }
   }
 
+  async getChannelMessages(
+    channelName: string,
+    before: MessagePageCursor | null = null,
+    limit = DEFAULT_CHANNEL_PAGE_SIZE
+  ): Promise<ChannelMessagePage> {
+    const selectedCharacterId = this.characterRegistry.getSelectedCharacterId()
+
+    if (!selectedCharacterId) {
+      return {
+        characterId: '',
+        channelName,
+        messages: [],
+        hasMore: false
+      }
+    }
+
+    return this.messageRepository.getChannelMessages(selectedCharacterId, channelName, limit, before ?? undefined)
+  }
+
   async refreshScan(): Promise<BootstrapPayload> {
     const directoryStatus = this.pathResolver.resolveDirectory(this.config.logDirectory)
 
@@ -313,25 +335,31 @@ class EveBabelApp {
   }
 
   private async hydrateSessionFromPath(filePath: string): Promise<ChatSessionFile | null> {
-    const fileName = filePath.split(/\\|\//u).at(-1)
-    if (!fileName) {
+    const nextSession = await this.scanner.hydrateSessionFile(filePath)
+    if (!nextSession) {
       return null
     }
 
-    const parsed = parseChatLogFilename(fileName)
-    if (!parsed) {
-      return null
-    }
+    const currentSessions = this.scanIndex.sessionsByCharacter[nextSession.characterId] ?? []
+    const nextSessions = [...currentSessions.filter((session) => session.absolutePath !== nextSession.absolutePath), nextSession]
+    const characterLabels = Object.fromEntries(this.scanIndex.characters.map((character) => [character.characterId, character.label]))
 
-    const nextScan = await this.refreshScan()
-    const sessions = this.scanIndex.sessionsByCharacter[parsed.characterId] ?? []
-    const session = sessions.find((item) => item.absolutePath === filePath) ?? null
+    this.scanIndex = this.scanner.buildIndexFromSessions(
+      {
+        ...this.scanIndex.sessionsByCharacter,
+        [nextSession.characterId]: nextSessions
+      },
+      characterLabels
+    )
 
-    if (nextScan.config.selectedCharacterId === parsed.characterId) {
+    this.characterRegistry.setCharacters(this.scanIndex.characters, this.config.selectedCharacterId)
+    this.channelRegistry.setChannels(this.scanIndex.channelsByCharacter, this.config.enabledChannels, this.config.pinnedChannels)
+
+    if (this.characterRegistry.getSelectedCharacterId() === nextSession.characterId) {
       this.publishChannels()
     }
 
-    return session
+    return this.scanIndex.sessionsByCharacter[nextSession.characterId]?.find((session) => session.absolutePath === filePath) ?? null
   }
 
   private isChannelEnabled(characterId: string, channelName: string): boolean {
@@ -617,6 +645,7 @@ if (hasSingleInstanceLock) {
     await eveBabelApp.initialize()
     registerIpcRouter({
       getBootstrapData: () => eveBabelApp.getBootstrapData(),
+      getChannelMessages: (channelName, before, limit) => eveBabelApp.getChannelMessages(channelName, before, limit),
       refreshScan: () => eveBabelApp.refreshScan(),
       openSettingsWindow: () => eveBabelApp.openSettingsWindow(),
       setLogDirectory: (directory) => eveBabelApp.setLogDirectory(directory),
