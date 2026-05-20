@@ -182,6 +182,7 @@ export function App() {
                     selectedChannelName={selectedChannelName}
                     onSelectChannel={setSelectedChannelName}
                     onToggleChannel={actions.setChannelEnabled}
+                    onTogglePinned={actions.setChannelPinned}
                   />
                 )}
                 <div

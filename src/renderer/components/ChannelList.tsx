@@ -5,6 +5,7 @@ interface ChannelListProps {
   selectedChannelName: string | null
   onSelectChannel: (channelName: string) => void
   onToggleChannel: (channelName: string, enabled: boolean) => void
+  onTogglePinned: (channelName: string, pinned: boolean) => void
 }
 
 export function ChannelList(props: ChannelListProps) {
@@ -42,14 +43,24 @@ export function ChannelList(props: ChannelListProps) {
                   </span>
                 </div>
               </button>
-              <label className="channel-toggle">
-                <span className="channel-toggle-label">{channel.enabled ? 'On' : 'Off'}</span>
-                <input
-                  checked={channel.enabled}
-                  onChange={(event) => props.onToggleChannel(channel.channelName, event.target.checked)}
-                  type="checkbox"
-                />
-              </label>
+              <div className="channel-actions">
+                <button
+                  aria-label={channel.pinned ? `Unpin ${channel.channelName}` : `Pin ${channel.channelName}`}
+                  className={`channel-pin-button ${channel.pinned ? 'is-pinned' : ''}`}
+                  onClick={() => props.onTogglePinned(channel.channelName, !channel.pinned)}
+                  type="button"
+                >
+                  {channel.pinned ? 'Pinned' : 'Pin'}
+                </button>
+                <label className="channel-toggle">
+                  <span className="channel-toggle-label">{channel.enabled ? 'On' : 'Off'}</span>
+                  <input
+                    checked={channel.enabled}
+                    onChange={(event) => props.onToggleChannel(channel.channelName, event.target.checked)}
+                    type="checkbox"
+                  />
+                </label>
+              </div>
             </div>
           )
         })}

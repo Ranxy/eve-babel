@@ -119,6 +119,7 @@ export class ChatLogScanner {
         .map((session) => ({
           channelName: session.channelName,
           enabled: false,
+          pinned: false,
           messageCount: hydratedSessions.filter((item) => item.channelName === session.channelName).length,
           latestSessionStarted: session.sessionStarted,
           sourceCharacterId: characterId

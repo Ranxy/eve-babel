@@ -13,6 +13,7 @@ export interface CharacterSummary {
 export interface ChannelSummary {
   channelName: string
   enabled: boolean
+  pinned: boolean
   messageCount: number
   latestSessionStarted: string | null
   sourceCharacterId: string
@@ -58,6 +59,7 @@ export interface AppConfig {
   logDirectory: string | null
   selectedCharacterId: string | null
   enabledChannels: Record<string, string[]>
+  pinnedChannels: Record<string, string[]>
   targetLanguage: string
   apiBaseUrl: string
   modelName: string
@@ -117,6 +119,7 @@ export interface EveBabelApi {
   setLogDirectory: (directory: string) => Promise<BootstrapPayload>
   selectCharacter: (characterId: string) => Promise<BootstrapPayload>
   setChannelEnabled: (channelName: string, enabled: boolean) => Promise<BootstrapPayload>
+  setChannelPinned: (channelName: string, pinned: boolean) => Promise<BootstrapPayload>
   updateSettings: (update: AppSettingsUpdate) => Promise<BootstrapPayload>
   onMessagesUpsert: (listener: (messages: ChatMessage[]) => void) => () => void
   onChannelsUpdate: (listener: (channels: ChannelSummary[]) => void) => () => void

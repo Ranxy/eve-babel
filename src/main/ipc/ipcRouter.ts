@@ -9,6 +9,7 @@ export interface IpcController {
   setLogDirectory: (directory: string) => Promise<BootstrapPayload>
   selectCharacter: (characterId: string) => Promise<BootstrapPayload>
   setChannelEnabled: (channelName: string, enabled: boolean) => Promise<BootstrapPayload>
+  setChannelPinned: (channelName: string, pinned: boolean) => Promise<BootstrapPayload>
   updateSettings: (update: AppSettingsUpdate) => Promise<BootstrapPayload>
 }
 
@@ -20,6 +21,9 @@ export function registerIpcRouter(controller: IpcController): void {
   ipcMain.handle('app:selectCharacter', (_event, characterId: string) => controller.selectCharacter(characterId))
   ipcMain.handle('app:setChannelEnabled', (_event, channelName: string, enabled: boolean) => {
     return controller.setChannelEnabled(channelName, enabled)
+  })
+  ipcMain.handle('app:setChannelPinned', (_event, channelName: string, pinned: boolean) => {
+    return controller.setChannelPinned(channelName, pinned)
   })
   ipcMain.handle('app:updateSettings', (_event, update: AppSettingsUpdate) => controller.updateSettings(update))
   ipcMain.handle('app:chooseLogDirectory', async () => {

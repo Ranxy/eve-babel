@@ -64,6 +64,7 @@ class EveBabelApp {
     logDirectory: null,
     selectedCharacterId: null,
     enabledChannels: {},
+    pinnedChannels: {},
     targetLanguage: 'zh-CN',
     apiBaseUrl: '',
     modelName: '',
@@ -178,14 +179,14 @@ class EveBabelApp {
         sessionsByCharacter: {}
       }
       this.characterRegistry.setCharacters([], null)
-      this.channelRegistry.setChannels({}, this.config.enabledChannels)
+      this.channelRegistry.setChannels({}, this.config.enabledChannels, this.config.pinnedChannels)
       await this.watcher.stop()
       return this.getBootstrapData()
     }
 
     this.scanIndex = await this.scanner.scanDirectory(directoryStatus.path)
     this.characterRegistry.setCharacters(this.scanIndex.characters, this.config.selectedCharacterId)
-    this.channelRegistry.setChannels(this.scanIndex.channelsByCharacter, this.config.enabledChannels)
+    this.channelRegistry.setChannels(this.scanIndex.channelsByCharacter, this.config.enabledChannels, this.config.pinnedChannels)
 
     const selectedCharacterId = this.characterRegistry.getSelectedCharacterId()
     if (selectedCharacterId) {
@@ -221,7 +222,19 @@ class EveBabelApp {
     }
 
     this.config = this.mergeAppConfig(await this.configStore.setChannelEnabled(characterId, channelName, enabled))
-    this.channelRegistry.setChannels(this.scanIndex.channelsByCharacter, this.config.enabledChannels)
+    this.channelRegistry.setChannels(this.scanIndex.channelsByCharacter, this.config.enabledChannels, this.config.pinnedChannels)
+    this.publishChannels()
+    return this.getBootstrapData()
+  }
+
+  async setChannelPinned(channelName: string, pinned: boolean): Promise<BootstrapPayload> {
+    const characterId = this.characterRegistry.getSelectedCharacterId()
+    if (!characterId) {
+      return this.getBootstrapData()
+    }
+
+    this.config = this.mergeAppConfig(await this.configStore.setChannelPinned(characterId, channelName, pinned))
+    this.channelRegistry.setChannels(this.scanIndex.channelsByCharacter, this.config.enabledChannels, this.config.pinnedChannels)
     this.publishChannels()
     return this.getBootstrapData()
   }
@@ -235,7 +248,7 @@ class EveBabelApp {
     })
 
     this.config = this.composeRuntimeConfig(nextAppConfig, nextLlmConfig)
-    this.channelRegistry.setChannels(this.scanIndex.channelsByCharacter, this.config.enabledChannels)
+    this.channelRegistry.setChannels(this.scanIndex.channelsByCharacter, this.config.enabledChannels, this.config.pinnedChannels)
     await this.translationQueue.refreshConfiguration(this.config)
 
     if (this.translationQueue.getStatus().configured) {
@@ -599,6 +612,7 @@ if (hasSingleInstanceLock) {
       setLogDirectory: (directory) => eveBabelApp.setLogDirectory(directory),
       selectCharacter: (characterId) => eveBabelApp.selectCharacter(characterId),
       setChannelEnabled: (channelName, enabled) => eveBabelApp.setChannelEnabled(channelName, enabled),
+      setChannelPinned: (channelName, pinned) => eveBabelApp.setChannelPinned(channelName, pinned),
       updateSettings: (update) => eveBabelApp.updateSettings(update)
     })
     nativeTheme.on('updated', () => {

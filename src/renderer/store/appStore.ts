@@ -20,6 +20,7 @@ const emptyState: AppStoreState = {
     logDirectory: null,
     selectedCharacterId: null,
     enabledChannels: {},
+    pinnedChannels: {},
     targetLanguage: 'zh-CN',
     apiBaseUrl: 'https://api.openai.com/v1',
     modelName: 'gpt-4.1-mini',
@@ -140,6 +141,7 @@ export function useAppStore() {
       setLogDirectory: (directory: string) => runAction(window.eveBabel.setLogDirectory(directory)),
       selectCharacter: (characterId: string) => runAction(window.eveBabel.selectCharacter(characterId)),
       setChannelEnabled: (channelName: string, enabled: boolean) => runAction(window.eveBabel.setChannelEnabled(channelName, enabled)),
+      setChannelPinned: (channelName: string, pinned: boolean) => runAction(window.eveBabel.setChannelPinned(channelName, pinned)),
       updateSettings: (update: AppSettingsUpdate) => runAction(window.eveBabel.updateSettings(update))
     }
   }

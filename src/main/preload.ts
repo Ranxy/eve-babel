@@ -12,6 +12,9 @@ const api: EveBabelApi = {
   setChannelEnabled: (channelName: string, enabled: boolean) => {
     return ipcRenderer.invoke('app:setChannelEnabled', channelName, enabled)
   },
+  setChannelPinned: (channelName: string, pinned: boolean) => {
+    return ipcRenderer.invoke('app:setChannelPinned', channelName, pinned)
+  },
   updateSettings: (update: AppSettingsUpdate) => ipcRenderer.invoke('app:updateSettings', update),
   onMessagesUpsert: (listener: (messages: ChatMessage[]) => void) => {
     const subscription = (_event: Electron.IpcRendererEvent, messages: ChatMessage[]) => listener(messages)

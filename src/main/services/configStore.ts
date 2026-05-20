@@ -7,6 +7,7 @@ const DEFAULT_CONFIG: AppConfig = {
   logDirectory: null,
   selectedCharacterId: null,
   enabledChannels: {},
+  pinnedChannels: {},
   targetLanguage: 'zh-CN',
   apiBaseUrl: '',
   modelName: '',
@@ -20,12 +21,29 @@ function sanitizeConfig(input: Partial<AppConfig>): AppConfig {
     logDirectory: typeof input.logDirectory === 'string' || input.logDirectory === null ? input.logDirectory : null,
     selectedCharacterId:
       typeof input.selectedCharacterId === 'string' || input.selectedCharacterId === null ? input.selectedCharacterId : null,
-    enabledChannels:
-      input.enabledChannels && typeof input.enabledChannels === 'object' ? { ...input.enabledChannels } : { ...DEFAULT_CONFIG.enabledChannels },
+    enabledChannels: sanitizeChannelMap(input.enabledChannels),
+    pinnedChannels: sanitizeChannelMap(input.pinnedChannels),
     targetLanguage: typeof input.targetLanguage === 'string' ? input.targetLanguage : DEFAULT_CONFIG.targetLanguage,
     debounceMs: typeof input.debounceMs === 'number' ? input.debounceMs : DEFAULT_CONFIG.debounceMs,
     maxQueueSize: typeof input.maxQueueSize === 'number' ? input.maxQueueSize : DEFAULT_CONFIG.maxQueueSize
   }
+}
+
+function sanitizeChannelMap(input: unknown): Record<string, string[]> {
+  if (!input || typeof input !== 'object') {
+    return {}
+  }
+
+  return Object.fromEntries(
+    Object.entries(input).map(([characterId, channels]) => [
+      characterId,
+      Array.isArray(channels)
+        ? Array.from(new Set(channels.filter((channel): channel is string => typeof channel === 'string'))).sort((left, right) =>
+            left.localeCompare(right)
+          )
+        : []
+    ])
+  )
 }
 
 export class ConfigStore {
@@ -52,7 +70,8 @@ export class ConfigStore {
     this.config = sanitizeConfig({
       ...this.config,
       ...patch,
-      enabledChannels: patch.enabledChannels ? { ...patch.enabledChannels } : { ...this.config.enabledChannels }
+      enabledChannels: patch.enabledChannels ? { ...patch.enabledChannels } : { ...this.config.enabledChannels },
+      pinnedChannels: patch.pinnedChannels ? { ...patch.pinnedChannels } : { ...this.config.pinnedChannels }
     })
     await this.persist()
     return this.getConfig()
@@ -69,6 +88,24 @@ export class ConfigStore {
 
     this.config.enabledChannels = {
       ...this.config.enabledChannels,
+      [characterId]: Array.from(currentChannels).sort((left, right) => left.localeCompare(right))
+    }
+
+    await this.persist()
+    return this.getConfig()
+  }
+
+  async setChannelPinned(characterId: string, channelName: string, pinned: boolean): Promise<AppConfig> {
+    const currentChannels = new Set(this.config.pinnedChannels[characterId] ?? [])
+
+    if (pinned) {
+      currentChannels.add(channelName)
+    } else {
+      currentChannels.delete(channelName)
+    }
+
+    this.config.pinnedChannels = {
+      ...this.config.pinnedChannels,
       [characterId]: Array.from(currentChannels).sort((left, right) => left.localeCompare(right))
     }
 
