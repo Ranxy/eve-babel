@@ -79,6 +79,11 @@ export interface ChannelMessagePage {
 export interface TranslationJob {
   jobId: string
   messageId: string
+  characterId: string
+  channelName: string
+  senderName: string
+  messageText: string
+  timestamp: string
   targetLanguage: string
   provider: string
   model: string
@@ -148,6 +153,7 @@ export interface RendererEvents {
 export interface EveBabelApi {
   getBootstrapData: () => Promise<BootstrapPayload>
   getChannelMessages: (channelName: string, before?: MessagePageCursor | null, limit?: number) => Promise<ChannelMessagePage>
+  cancelQueuedTranslations: () => Promise<BootstrapPayload>
   refreshScan: () => Promise<BootstrapPayload>
   chooseLogDirectory: () => Promise<BootstrapPayload>
   openSettingsWindow: () => Promise<void>

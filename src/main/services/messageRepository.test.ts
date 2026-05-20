@@ -99,6 +99,85 @@ describe('MessageRepository', () => {
     })
   })
 
+  it('resets stale in-flight translation states when the repository reloads', async () => {
+    const { repository, directoryPath } = await createRepository()
+    const repositoryPath = join(directoryPath, 'messages.sqlite')
+
+    await repository.upsertMessages([
+      createMessage({
+        translationStatus: 'queued',
+        translatedText: null,
+        errorMessage: null
+      }),
+      createMessage({
+        messageId: 'message-2',
+        timestamp: '2026-05-20T12:32:05',
+        translationStatus: 'translating',
+        translatedText: null,
+        errorMessage: null
+      })
+    ])
+
+    const reloadedRepository = new MessageRepository(repositoryPath)
+    await reloadedRepository.load()
+
+    expect(reloadedRepository.getChannelMessages('9001', 'Local', 10).messages).toEqual([
+      expect.objectContaining({ messageId: 'message-1', translationStatus: 'idle', translatedText: null, errorMessage: null }),
+      expect.objectContaining({ messageId: 'message-2', translationStatus: 'idle', translatedText: null, errorMessage: null })
+    ])
+  })
+
+  it('resets stale queue-full errors when the repository reloads', async () => {
+    const { repository, directoryPath } = await createRepository()
+    const repositoryPath = join(directoryPath, 'messages.sqlite')
+
+    await repository.upsertMessages([
+      createMessage({
+        translationStatus: 'error',
+        translatedText: null,
+        errorMessage: 'Translation queue is full.'
+      })
+    ])
+
+    const reloadedRepository = new MessageRepository(repositoryPath)
+    await reloadedRepository.load()
+
+    expect(reloadedRepository.getChannelMessages('9001', 'Local', 10).messages).toEqual([
+      expect.objectContaining({
+        messageId: 'message-1',
+        translationStatus: 'idle',
+        translatedText: null,
+        errorMessage: null
+      })
+    ])
+  })
+
+  it('does not preserve queue-full errors when the same message is rescanned as idle', async () => {
+    const { repository } = await createRepository()
+
+    await repository.upsertMessages([
+      createMessage({
+        translationStatus: 'error',
+        translatedText: null,
+        errorMessage: 'Translation queue is full.'
+      })
+    ])
+
+    const [persistedMessage] = await repository.upsertMessages([
+      createMessage({
+        translationStatus: 'idle',
+        translatedText: null,
+        errorMessage: null
+      })
+    ])
+
+    expect(persistedMessage).toMatchObject({
+      translationStatus: 'idle',
+      translatedText: null,
+      errorMessage: null
+    })
+  })
+
   it('migrates legacy messages.json data into messages.sqlite on load', async () => {
     const directoryPath = await mkdtemp(join(tmpdir(), 'eve-babel-repository-legacy-'))
     tempDirectories.push(directoryPath)

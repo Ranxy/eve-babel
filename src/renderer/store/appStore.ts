@@ -293,6 +293,7 @@ export function useAppStore() {
   return {
     state,
     actions: {
+      cancelQueuedTranslations: () => runAction(window.eveBabel.cancelQueuedTranslations()),
       refreshScan: () => runAction(window.eveBabel.refreshScan()),
       chooseLogDirectory: () => runAction(window.eveBabel.chooseLogDirectory()),
       openSettingsWindow: () => window.eveBabel.openSettingsWindow(),

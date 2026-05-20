@@ -6,6 +6,7 @@ interface SettingsPanelProps {
   config: AppConfig
   apiStatus: ApiStatus
   forceLlmSetup?: boolean
+  onCancelQueuedTranslations: () => void
   onSave: (update: { config: Partial<AppConfig>; apiKey?: string }) => void
 }
 
@@ -56,6 +57,7 @@ export function SettingsPanel(props: SettingsPanelProps) {
         <div className="settings-note">
           <span className="settings-note-label">Queue snapshot</span>
           <strong>{props.apiStatus.queueLength} waiting</strong>
+          <span className="settings-field-hint">{props.apiStatus.activeJobs} active batches</span>
         </div>
         <div className="settings-note">
           <span className="settings-note-label">Provider state</span>
@@ -142,34 +144,44 @@ export function SettingsPanel(props: SettingsPanelProps) {
           </span>
         </label>
       </div>
-      <button
-        className="primary-button"
-        type="button"
-        disabled={requiresLlmFields && !canSubmitLlmConfig}
-        onClick={() => {
-          props.onSave({
-            config: props.forceLlmSetup
-              ? {
-                  targetLanguage: formState.targetLanguage,
-                  translationPrompt: formState.translationPrompt,
-                  apiBaseUrl: formState.apiBaseUrl.trim(),
-                  modelName: formState.modelName.trim()
-                }
-              : {
-                  targetLanguage: formState.targetLanguage,
-                  translationPrompt: formState.translationPrompt,
-                  apiBaseUrl: formState.apiBaseUrl.trim(),
-                  modelName: formState.modelName.trim(),
-                  debounceMs: Number(formState.debounceMs),
-                  maxQueueSize: Number(formState.maxQueueSize)
-                },
-            apiKey: formState.apiKey || undefined
-          })
-          setFormState((current) => ({ ...current, apiKey: '' }))
-        }}
-      >
-        {props.forceLlmSetup ? 'Save provider settings' : 'Save settings'}
-      </button>
+      <div className="settings-action-row">
+        <button
+          className="ghost-button"
+          type="button"
+          disabled={props.apiStatus.queueLength === 0}
+          onClick={props.onCancelQueuedTranslations}
+        >
+          Cancel queued translations
+        </button>
+        <button
+          className="primary-button"
+          type="button"
+          disabled={requiresLlmFields && !canSubmitLlmConfig}
+          onClick={() => {
+            props.onSave({
+              config: props.forceLlmSetup
+                ? {
+                    targetLanguage: formState.targetLanguage,
+                    translationPrompt: formState.translationPrompt,
+                    apiBaseUrl: formState.apiBaseUrl.trim(),
+                    modelName: formState.modelName.trim()
+                  }
+                : {
+                    targetLanguage: formState.targetLanguage,
+                    translationPrompt: formState.translationPrompt,
+                    apiBaseUrl: formState.apiBaseUrl.trim(),
+                    modelName: formState.modelName.trim(),
+                    debounceMs: Number(formState.debounceMs),
+                    maxQueueSize: Number(formState.maxQueueSize)
+                  },
+              apiKey: formState.apiKey || undefined
+            })
+            setFormState((current) => ({ ...current, apiKey: '' }))
+          }}
+        >
+          {props.forceLlmSetup ? 'Save provider settings' : 'Save settings'}
+        </button>
+      </div>
     </section>
   )
 }

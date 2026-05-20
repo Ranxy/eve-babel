@@ -123,6 +123,7 @@ export function App() {
             apiStatus={state.apiStatus}
             config={state.config}
             forceLlmSetup={showForcedLlmSetup}
+            onCancelQueuedTranslations={actions.cancelQueuedTranslations}
             onSave={actions.updateSettings}
           />
         </main>

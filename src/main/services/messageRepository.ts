@@ -7,6 +7,8 @@ import initSqlJs, { type Database, type SqlJsStatic } from 'sql.js'
 import type { ChannelMessagePage, ChatMessage, MessagePageCursor } from '../../shared/types'
 
 const require = createRequire(import.meta.url)
+const IN_FLIGHT_TRANSLATION_STATUSES = ['queued', 'translating'] as const
+const TRANSIENT_TRANSLATION_ERRORS = new Set(['Translation queue is full.'])
 
 type StoredMessageRow = {
   message_id: string
@@ -51,6 +53,7 @@ export class MessageRepository {
     }
 
     this.initializeSchema()
+    this.resetInFlightTranslations()
     await this.migrateLegacyJsonIfPresent()
     await this.pruneOldMessages()
     await this.persist()
@@ -374,7 +377,7 @@ export class MessageRepository {
     }
 
     const shouldPreserveTranslation =
-      incomingMessage.translationStatus === 'idle' && PRESERVED_TRANSLATION_STATUSES.has(existingMessage.translationStatus)
+      incomingMessage.translationStatus === 'idle' && this.shouldPreserveExistingTranslation(existingMessage)
 
     return {
       ...incomingMessage,
@@ -382,6 +385,14 @@ export class MessageRepository {
       translatedText: incomingMessage.translatedText ?? existingMessage.translatedText,
       errorMessage: incomingMessage.errorMessage ?? (shouldPreserveTranslation ? existingMessage.errorMessage : null)
     }
+  }
+
+  private shouldPreserveExistingTranslation(existingMessage: ChatMessage): boolean {
+    if (existingMessage.translationStatus === 'error' && TRANSIENT_TRANSLATION_ERRORS.has(existingMessage.errorMessage ?? '')) {
+      return false
+    }
+
+    return PRESERVED_TRANSLATION_STATUSES.has(existingMessage.translationStatus)
   }
 
   private toStatementParams(message: ChatMessage) {
@@ -399,6 +410,44 @@ export class MessageRepository {
       $errorMessage: message.errorMessage,
       $updatedAt: new Date().toISOString()
     }
+  }
+
+  private resetInFlightTranslations(): void {
+    const database = this.getDatabase()
+    const placeholders = IN_FLIGHT_TRANSLATION_STATUSES.map((_, index) => `$status${index}`).join(', ')
+    const params = Object.fromEntries(IN_FLIGHT_TRANSLATION_STATUSES.map((status, index) => [`$status${index}`, status]))
+
+    database.run(
+      `
+        UPDATE chat_messages
+        SET translation_status = 'idle',
+            error_message = NULL,
+            updated_at = $updatedAt
+        WHERE translation_status IN (${placeholders})
+      `,
+      {
+        ...params,
+        $updatedAt: new Date().toISOString()
+      }
+    )
+
+    const transientErrorPlaceholders = Array.from(TRANSIENT_TRANSLATION_ERRORS, (_value, index) => `$error${index}`).join(', ')
+    const transientErrorParams = Object.fromEntries(Array.from(TRANSIENT_TRANSLATION_ERRORS, (errorMessage, index) => [`$error${index}`, errorMessage]))
+
+    database.run(
+      `
+        UPDATE chat_messages
+        SET translation_status = 'idle',
+            error_message = NULL,
+            updated_at = $updatedAt
+        WHERE translation_status = 'error'
+          AND error_message IN (${transientErrorPlaceholders})
+      `,
+      {
+        ...transientErrorParams,
+        $updatedAt: new Date().toISOString()
+      }
+    )
   }
 
   private async pruneOldMessages(): Promise<void> {

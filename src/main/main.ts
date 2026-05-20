@@ -203,6 +203,12 @@ class EveBabelApp {
     return this.messageRepository.getChannelMessages(selectedCharacterId, channelName, limit, before ?? undefined)
   }
 
+  async cancelQueuedTranslations(): Promise<BootstrapPayload> {
+    await this.translationQueue.cancelQueued()
+    this.publishStatus()
+    return this.getBootstrapData()
+  }
+
   async refreshScan(): Promise<BootstrapPayload> {
     const directoryStatus = this.pathResolver.resolveDirectory(this.config.logDirectory)
 
@@ -681,6 +687,7 @@ if (hasSingleInstanceLock) {
     registerIpcRouter({
       getBootstrapData: () => eveBabelApp.getBootstrapData(),
       getChannelMessages: (channelName, before, limit) => eveBabelApp.getChannelMessages(channelName, before, limit),
+      cancelQueuedTranslations: () => eveBabelApp.cancelQueuedTranslations(),
       refreshScan: () => eveBabelApp.refreshScan(),
       openSettingsWindow: () => eveBabelApp.openSettingsWindow(),
       setLogDirectory: (directory) => eveBabelApp.setLogDirectory(directory),

@@ -942,6 +942,13 @@ h2 {
   resize: vertical;
 }
 
+.settings-action-row {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
 .primary-button,
 .ghost-button {
   border-radius: 999px;
