@@ -131,7 +131,6 @@ export function MessageFeed(props: MessageFeedProps) {
                   </div>
                   <div className="chat-bubble-stack">
                     <div className="chat-bubble chat-bubble-original">
-                      <span className="chat-section-label">Original</span>
                       <div className="chat-bubble-body">
                         <div className="chat-bubble-copy">{message.messageText}</div>
                         {showTranslationStatus ? (
