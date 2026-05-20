@@ -132,12 +132,11 @@ export function App() {
         <StatusBar
           apiStatus={state.apiStatus}
           characters={state.characters}
-          directoryStatus={state.directoryStatus}
           isSidebarCollapsed={isSidebarCollapsed}
           selectedCharacterId={state.config.selectedCharacterId}
-          watcherStatus={state.watcherStatus}
-          onChooseDirectory={actions.chooseLogDirectory}
+          targetLanguage={state.config.targetLanguage}
           onSelectCharacter={actions.selectCharacter}
+          onSelectTargetLanguage={(targetLanguage) => actions.updateSettings({ config: { targetLanguage } })}
           onToggleSidebar={() => setIsSidebarCollapsed((current) => !current)}
         />
 

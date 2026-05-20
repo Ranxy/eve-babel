@@ -107,11 +107,15 @@ body {
 }
 
 button,
-input {
+input,
+select,
+textarea {
   font: inherit;
 }
 
-input {
+input,
+select,
+textarea {
   color: var(--text);
   user-select: text;
   -webkit-user-select: text;
@@ -338,6 +342,19 @@ h2 {
 .toolbar-pill-wide strong {
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+.toolbar-pill-select {
+  gap: 10px;
+}
+
+.toolbar-select-field {
+  min-width: 180px;
+  border: none;
+  background: transparent;
+  color: inherit;
+  font-weight: 600;
+  outline: none;
 }
 
 .toolbar-utility-button {
@@ -931,11 +948,18 @@ h2 {
   grid-column: 1 / -1;
 }
 
-.settings-grid input {
+.settings-grid input,
+.settings-grid select,
+.settings-grid textarea {
   border: 1px solid var(--border);
   border-radius: 12px;
   padding: 12px 14px;
   background: var(--input-surface);
+}
+
+.settings-grid textarea {
+  min-height: 132px;
+  resize: vertical;
 }
 
 .primary-button,

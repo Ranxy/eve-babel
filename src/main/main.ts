@@ -3,7 +3,16 @@ import { readFile } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 
-import type { AppConfig, AppSettingsUpdate, BootstrapPayload, ChatMessage, ChannelSummary, ChatSessionFile } from '../shared/types'
+import {
+  DEFAULT_TARGET_LANGUAGE,
+  DEFAULT_TRANSLATION_PROMPT,
+  type AppConfig,
+  type AppSettingsUpdate,
+  type BootstrapPayload,
+  type ChatMessage,
+  type ChannelSummary,
+  type ChatSessionFile
+} from '../shared/types'
 import { registerIpcRouter, emitChannels, emitMessages, emitStatus } from './ipc/ipcRouter'
 import { ChannelRegistry } from './services/channelRegistry'
 import { CharacterRegistry } from './services/characterRegistry'
@@ -65,7 +74,8 @@ class EveBabelApp {
     selectedCharacterId: null,
     enabledChannels: {},
     pinnedChannels: {},
-    targetLanguage: 'zh-CN',
+    targetLanguage: DEFAULT_TARGET_LANGUAGE,
+    translationPrompt: DEFAULT_TRANSLATION_PROMPT,
     apiBaseUrl: '',
     modelName: '',
     debounceMs: 350,

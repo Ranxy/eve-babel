@@ -1,4 +1,4 @@
-import type { AppConfig } from '../../shared/types'
+import { DEFAULT_TRANSLATION_PROMPT, type AppConfig } from '../../shared/types'
 
 interface LlmClientOptions {
   apiKey: string
@@ -19,7 +19,7 @@ export class LlmClient {
         messages: [
           {
             role: 'system',
-            content: `Translate incoming EVE Online chat messages into ${options.config.targetLanguage}. Return translation only.`
+            content: buildTranslationPrompt(options.config)
           },
           {
             role: 'user',
@@ -44,4 +44,14 @@ export class LlmClient {
 
     return translatedText
   }
+}
+
+function buildTranslationPrompt(config: AppConfig): string {
+  const template = config.translationPrompt.trim() || DEFAULT_TRANSLATION_PROMPT
+
+  if (/\{\{\s*targetLanguage\s*\}\}/u.test(template)) {
+    return template.replace(/\{\{\s*targetLanguage\s*\}\}/gu, config.targetLanguage)
+  }
+
+  return `${template}\n\nTarget language: ${config.targetLanguage}\nReturn translation only.`
 }

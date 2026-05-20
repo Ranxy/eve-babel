@@ -1,14 +1,15 @@
 import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
 
-import type { AppConfig } from '../../shared/types'
+import { DEFAULT_TARGET_LANGUAGE, DEFAULT_TRANSLATION_PROMPT, isTargetLanguage, type AppConfig } from '../../shared/types'
 
 const DEFAULT_CONFIG: AppConfig = {
   logDirectory: null,
   selectedCharacterId: null,
   enabledChannels: {},
   pinnedChannels: {},
-  targetLanguage: 'zh-CN',
+  targetLanguage: DEFAULT_TARGET_LANGUAGE,
+  translationPrompt: DEFAULT_TRANSLATION_PROMPT,
   apiBaseUrl: '',
   modelName: '',
   debounceMs: 350,
@@ -23,7 +24,11 @@ function sanitizeConfig(input: Partial<AppConfig>): AppConfig {
       typeof input.selectedCharacterId === 'string' || input.selectedCharacterId === null ? input.selectedCharacterId : null,
     enabledChannels: sanitizeChannelMap(input.enabledChannels),
     pinnedChannels: sanitizeChannelMap(input.pinnedChannels),
-    targetLanguage: typeof input.targetLanguage === 'string' ? input.targetLanguage : DEFAULT_CONFIG.targetLanguage,
+    targetLanguage: typeof input.targetLanguage === 'string' && isTargetLanguage(input.targetLanguage) ? input.targetLanguage : DEFAULT_CONFIG.targetLanguage,
+    translationPrompt:
+      typeof input.translationPrompt === 'string' && input.translationPrompt.trim().length > 0
+        ? input.translationPrompt.trim()
+        : DEFAULT_CONFIG.translationPrompt,
     debounceMs: typeof input.debounceMs === 'number' ? input.debounceMs : DEFAULT_CONFIG.debounceMs,
     maxQueueSize: typeof input.maxQueueSize === 'number' ? input.maxQueueSize : DEFAULT_CONFIG.maxQueueSize
   }

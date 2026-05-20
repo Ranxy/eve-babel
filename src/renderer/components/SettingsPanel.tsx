@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 
-import type { ApiStatus, AppConfig } from '../../shared/types'
+import { TARGET_LANGUAGE_OPTIONS, type ApiStatus, type AppConfig } from '../../shared/types'
 
 interface SettingsPanelProps {
   config: AppConfig
@@ -11,7 +11,7 @@ interface SettingsPanelProps {
 
 export function SettingsPanel(props: SettingsPanelProps) {
   const [formState, setFormState] = useState(() => createFormState(props.config))
-  const targetLanguageRef = useRef<HTMLInputElement | null>(null)
+  const targetLanguageRef = useRef<HTMLSelectElement | null>(null)
   const apiBaseUrlRef = useRef<HTMLInputElement | null>(null)
   const hasAppliedInitialFocus = useRef(false)
 
@@ -63,17 +63,21 @@ export function SettingsPanel(props: SettingsPanelProps) {
         </div>
       </div>
       <div className="settings-grid">
-        {!requiresLlmFields ? (
-          <label className="settings-field">
-            <span className="settings-field-label">Target language</span>
-            <input
-              ref={targetLanguageRef}
-              value={formState.targetLanguage}
-              onChange={(event) => setFormState((current) => ({ ...current, targetLanguage: event.target.value }))}
-            />
-            <span className="settings-field-hint">Use a locale tag such as zh-CN or en-US.</span>
-          </label>
-        ) : null}
+        <label className="settings-field">
+          <span className="settings-field-label">Target language</span>
+          <select
+            ref={targetLanguageRef}
+            value={formState.targetLanguage}
+            onChange={(event) => setFormState((current) => ({ ...current, targetLanguage: event.target.value as AppConfig['targetLanguage'] }))}
+          >
+            {TARGET_LANGUAGE_OPTIONS.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+          <span className="settings-field-hint">Choose the language used for every translated chat line.</span>
+        </label>
         <label className="settings-field">
           <span className="settings-field-label">API base URL</span>
           <input
@@ -116,6 +120,16 @@ export function SettingsPanel(props: SettingsPanelProps) {
           </label>
         ) : null}
         <label className="settings-field settings-field-wide">
+          <span className="settings-field-label">Translation prompt</span>
+          <textarea
+            rows={5}
+            value={formState.translationPrompt}
+            onChange={(event) => setFormState((current) => ({ ...current, translationPrompt: event.target.value }))}
+            placeholder="Use {{targetLanguage}} to inject the selected target language."
+          />
+          <span className="settings-field-hint">Use <code>{'{{targetLanguage}}'}</code> anywhere in the prompt to bind the selected language.</span>
+        </label>
+        <label className="settings-field settings-field-wide">
           <span className="settings-field-label">API key</span>
           <input
             type="password"
@@ -136,11 +150,14 @@ export function SettingsPanel(props: SettingsPanelProps) {
           props.onSave({
             config: props.forceLlmSetup
               ? {
+                  targetLanguage: formState.targetLanguage,
+                  translationPrompt: formState.translationPrompt,
                   apiBaseUrl: formState.apiBaseUrl.trim(),
                   modelName: formState.modelName.trim()
                 }
               : {
                   targetLanguage: formState.targetLanguage,
+                  translationPrompt: formState.translationPrompt,
                   apiBaseUrl: formState.apiBaseUrl.trim(),
                   modelName: formState.modelName.trim(),
                   debounceMs: Number(formState.debounceMs),
@@ -160,6 +177,7 @@ export function SettingsPanel(props: SettingsPanelProps) {
 function createFormState(config: AppConfig) {
   return {
     targetLanguage: config.targetLanguage,
+    translationPrompt: config.translationPrompt,
     apiBaseUrl: config.apiBaseUrl,
     modelName: config.modelName,
     debounceMs: String(config.debounceMs),

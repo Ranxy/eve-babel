@@ -1,6 +1,13 @@
 import { useEffect, useState } from 'react'
 
-import type { AppSettingsUpdate, BootstrapPayload, ChatMessage, ChannelSummary } from '../../shared/types'
+import {
+  DEFAULT_TARGET_LANGUAGE,
+  DEFAULT_TRANSLATION_PROMPT,
+  type AppSettingsUpdate,
+  type BootstrapPayload,
+  type ChatMessage,
+  type ChannelSummary
+} from '../../shared/types'
 
 interface AppStoreState extends BootstrapPayload {
   loading: boolean
@@ -21,7 +28,8 @@ const emptyState: AppStoreState = {
     selectedCharacterId: null,
     enabledChannels: {},
     pinnedChannels: {},
-    targetLanguage: 'zh-CN',
+    targetLanguage: DEFAULT_TARGET_LANGUAGE,
+    translationPrompt: DEFAULT_TRANSLATION_PROMPT,
     apiBaseUrl: 'https://api.openai.com/v1',
     modelName: 'gpt-4.1-mini',
     debounceMs: 350,

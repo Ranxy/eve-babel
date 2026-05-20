@@ -1,16 +1,15 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 
-import type { ApiStatus, CharacterSummary, DirectoryStatus, WatcherStatus } from '../../shared/types'
+import { TARGET_LANGUAGE_OPTIONS, type ApiStatus, type AppConfig, type CharacterSummary } from '../../shared/types'
 
 interface StatusBarProps {
-  directoryStatus: DirectoryStatus
-  watcherStatus: WatcherStatus
   apiStatus: ApiStatus
   characters: CharacterSummary[]
   selectedCharacterId: string | null
+  targetLanguage: AppConfig['targetLanguage']
   isSidebarCollapsed: boolean
-  onChooseDirectory: () => void
   onSelectCharacter: (characterId: string) => void
+  onSelectTargetLanguage: (targetLanguage: AppConfig['targetLanguage']) => void
   onToggleSidebar: () => void
 }
 
@@ -97,33 +96,26 @@ export function StatusBar(props: StatusBarProps) {
         </div>
       </div>
       <div className="workspace-toolbar-group workspace-toolbar-group-secondary">
-        <div className="toolbar-pill toolbar-pill-wide" title={props.directoryStatus.path ?? 'not set'}>
-          <span className="toolbar-pill-label">Logs</span>
-          <strong>{summarizePath(props.directoryStatus.path)}</strong>
-        </div>
-        <div className="toolbar-pill">
-          <span className="toolbar-pill-label">Watcher</span>
-          <strong>{props.watcherStatus.watchedChannels}</strong>
-          <span>{props.watcherStatus.state}</span>
-        </div>
+        <label className="toolbar-pill toolbar-pill-select">
+          <span className="toolbar-pill-label">Target language</span>
+          <select
+            className="toolbar-select-field"
+            value={props.targetLanguage}
+            onChange={(event) => props.onSelectTargetLanguage(event.target.value as AppConfig['targetLanguage'])}
+          >
+            {TARGET_LANGUAGE_OPTIONS.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+        </label>
         <div className="toolbar-pill">
           <span className="toolbar-pill-label">Queue</span>
           <strong>{props.apiStatus.queueLength}</strong>
           <span>{props.apiStatus.activeJobs} active</span>
         </div>
-        <button className="ghost-button toolbar-utility-button" onClick={props.onChooseDirectory} type="button">
-          Logs
-        </button>
       </div>
     </section>
   )
-}
-
-function summarizePath(path: string | null): string {
-  if (!path) {
-    return 'not set'
-  }
-
-  const parts = path.split(/\\|\//u).filter(Boolean)
-  return parts.slice(-2).join(' / ')
 }

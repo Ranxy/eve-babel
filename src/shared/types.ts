@@ -2,6 +2,27 @@ export type MessageType = 'chat' | 'system'
 export type TranslationStatus = 'idle' | 'queued' | 'translating' | 'translated' | 'error' | 'skipped'
 export type WatcherState = 'idle' | 'watching' | 'error'
 
+export const TARGET_LANGUAGE_OPTIONS = [
+  { value: 'zh-CN', label: 'Chinese (Simplified)' },
+  { value: 'zh-TW', label: 'Chinese (Traditional)' },
+  { value: 'en-US', label: 'English (US)' },
+  { value: 'ja-JP', label: 'Japanese' },
+  { value: 'ko-KR', label: 'Korean' },
+  { value: 'de-DE', label: 'German' },
+  { value: 'fr-FR', label: 'French' },
+  { value: 'ru-RU', label: 'Russian' }
+] as const
+
+export type TargetLanguage = (typeof TARGET_LANGUAGE_OPTIONS)[number]['value']
+
+export const DEFAULT_TARGET_LANGUAGE: TargetLanguage = 'zh-CN'
+export const DEFAULT_TRANSLATION_PROMPT =
+  'Translate incoming EVE Online chat messages into {{targetLanguage}}. Preserve EVE-specific terms where appropriate. Return translation only.'
+
+export function isTargetLanguage(value: string): value is TargetLanguage {
+  return TARGET_LANGUAGE_OPTIONS.some((option) => option.value === value)
+}
+
 export interface CharacterSummary {
   characterId: string
   label: string
@@ -60,7 +81,8 @@ export interface AppConfig {
   selectedCharacterId: string | null
   enabledChannels: Record<string, string[]>
   pinnedChannels: Record<string, string[]>
-  targetLanguage: string
+  targetLanguage: TargetLanguage
+  translationPrompt: string
   apiBaseUrl: string
   modelName: string
   debounceMs: number
