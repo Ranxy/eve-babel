@@ -179,9 +179,6 @@ export function ProvidersSettingsPage(props: ProvidersSettingsPageProps) {
             value={searchQuery}
           />
         </label>
-        <button className="ghost-button" disabled title="Custom ACP providers coming soon" type="button">
-          Add Custom ACP Provider
-        </button>
         <button className="ghost-button" disabled title="Custom providers coming soon" type="button">
           Add Custom Provider
         </button>
