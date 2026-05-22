@@ -61,6 +61,9 @@ export function ProvidersSettingsPage(props: ProvidersSettingsPageProps) {
   )
   const [apiKey, setApiKey] = useState('')
   const [showApiKey, setShowApiKey] = useState(false)
+  const [isEditingKey, setIsEditingKey] = useState(false)
+  const [storedKeyValue, setStoredKeyValue] = useState<string | null>(null)
+  const [showStoredKey, setShowStoredKey] = useState(false)
   const [fetchedModels, setFetchedModels] = useState<LlmProviderModel[]>([])
   const [isFetching, setIsFetching] = useState(false)
   const [fetchError, setFetchError] = useState<string | null>(null)
@@ -76,6 +79,10 @@ export function ProvidersSettingsPage(props: ProvidersSettingsPageProps) {
       setFetchError(null)
       setModelSearchQuery('')
       setApiKey('')
+      setShowApiKey(false)
+      setIsEditingKey(false)
+      setStoredKeyValue(null)
+      setShowStoredKey(false)
     }
   }, [selectedProviderId])
 
@@ -83,6 +90,21 @@ export function ProvidersSettingsPage(props: ProvidersSettingsPageProps) {
   const providerProfiles = profiles.filter((p) => p.providerId === selectedProviderId)
   const referenceProfileId = providerProfiles[0]?.profileId
   const isProviderSelected = activeProfileId ? providerProfiles.some((p) => p.profileId === activeProfileId) : false
+  const hasStoredKey = Boolean(referenceProfileId) && providerProfiles[0]?.hasApiKey
+  const inStoredKeyMode = hasStoredKey && !isEditingKey
+
+  const handleToggleStoredKey = async () => {
+    if (showStoredKey) {
+      setShowStoredKey(false)
+      setStoredKeyValue(null)
+      return
+    }
+    if (!storedKeyValue && referenceProfileId) {
+      const key = await window.eveBabel.getApiKeyForProfile(referenceProfileId)
+      setStoredKeyValue(key)
+    }
+    setShowStoredKey(true)
+  }
 
   const filteredProviders = providers.filter(
     (p) => !providerSearch.trim() || p.label.toLowerCase().includes(providerSearch.toLowerCase())
@@ -219,22 +241,46 @@ export function ProvidersSettingsPage(props: ProvidersSettingsPageProps) {
               </div>
               <div className="providers-api-key-row">
                 <div className="providers-api-key-field">
-                  <input
-                    autoComplete="off"
-                    placeholder={referenceProfileId ? 'Leave blank to use stored key' : 'Paste your API key…'}
-                    spellCheck={false}
-                    type={showApiKey ? 'text' : 'password'}
-                    value={apiKey}
-                    onChange={(e) => setApiKey(e.target.value)}
-                  />
-                  <button
-                    className="providers-eye-btn"
-                    title={showApiKey ? 'Hide key' : 'Show key'}
-                    type="button"
-                    onClick={() => setShowApiKey((v) => !v)}
-                  >
-                    {showApiKey ? <EyeOffIcon /> : <EyeIcon />}
-                  </button>
+                  {inStoredKeyMode ? (
+                    <>
+                      <input
+                        readOnly
+                        spellCheck={false}
+                        type="text"
+                        value={showStoredKey ? (storedKeyValue ?? '•••••••••••••••') : '•••••••••••••••'}
+                        title="Click to replace API key"
+                        style={{ cursor: 'pointer', letterSpacing: showStoredKey ? undefined : '0.1em' }}
+                        onClick={() => { setIsEditingKey(true); setShowStoredKey(false); setStoredKeyValue(null) }}
+                      />
+                      <button
+                        className="providers-eye-btn"
+                        title={showStoredKey ? 'Hide key' : 'Show key'}
+                        type="button"
+                        onClick={() => { void handleToggleStoredKey() }}
+                      >
+                        {showStoredKey ? <EyeOffIcon /> : <EyeIcon />}
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      <input
+                        autoComplete="off"
+                        placeholder="Paste your API key…"
+                        spellCheck={false}
+                        type={showApiKey ? 'text' : 'password'}
+                        value={apiKey}
+                        onChange={(e) => setApiKey(e.target.value)}
+                      />
+                      <button
+                        className="providers-eye-btn"
+                        title={showApiKey ? 'Hide key' : 'Show key'}
+                        type="button"
+                        onClick={() => setShowApiKey((v) => !v)}
+                      >
+                        {showApiKey ? <EyeOffIcon /> : <EyeIcon />}
+                      </button>
+                    </>
+                  )}
                 </div>
                 {apiKeyLink && (
                   <a className="providers-key-link" href={apiKeyLink} rel="noreferrer" target="_blank">

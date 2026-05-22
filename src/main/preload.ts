@@ -25,6 +25,7 @@ const api: EveBabelApi = {
   deleteLlmProviderProfile: (profileId: string) => ipcRenderer.invoke('app:deleteLlmProviderProfile', profileId),
   setActiveLlmProviderProfile: (profileId: string) => ipcRenderer.invoke('app:setActiveLlmProviderProfile', profileId),
   fetchLlmProviderModels: (input) => ipcRenderer.invoke('app:fetchLlmProviderModels', input),
+  getApiKeyForProfile: (profileId: string) => ipcRenderer.invoke('app:getApiKeyForProfile', profileId),
   onMessagesUpsert: (listener: (messages: ChatMessage[]) => void) => {
     const subscription = (_event: Electron.IpcRendererEvent, messages: ChatMessage[]) => listener(messages)
     ipcRenderer.on('messages:upsert', subscription)

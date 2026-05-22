@@ -28,6 +28,7 @@ export interface IpcController {
   deleteLlmProviderProfile: (profileId: string) => Promise<BootstrapPayload>
   setActiveLlmProviderProfile: (profileId: string) => Promise<BootstrapPayload>
   fetchLlmProviderModels: (input: FetchLlmProviderModelsInput) => Promise<LlmProviderModel[]>
+  getApiKeyForProfile: (profileId: string) => Promise<string | null>
 }
 
 export function registerIpcRouter(controller: IpcController): void {
@@ -59,6 +60,9 @@ export function registerIpcRouter(controller: IpcController): void {
   })
   ipcMain.handle('app:fetchLlmProviderModels', (_event, input: FetchLlmProviderModelsInput) => {
     return controller.fetchLlmProviderModels(input)
+  })
+  ipcMain.handle('app:getApiKeyForProfile', (_event, profileId: string) => {
+    return controller.getApiKeyForProfile(profileId)
   })
   ipcMain.handle('app:chooseLogDirectory', async () => {
     const result = await dialog.showOpenDialog({

@@ -376,6 +376,10 @@ class EveBabelApp {
     })
   }
 
+  async getApiKeyForProfile(profileId: string): Promise<string | null> {
+    return this.llmConfigStore.getApiKeyForProfile(profileId)
+  }
+
   private async startCharacterSession(characterId: string): Promise<void> {
     const sessions = this.scanIndex.sessionsByCharacter[characterId] ?? []
     const activeSessions = this.getActiveSessions(characterId)
@@ -783,7 +787,8 @@ if (hasSingleInstanceLock) {
       saveLlmProviderProfile: (input) => eveBabelApp.saveLlmProviderProfile(input),
       deleteLlmProviderProfile: (profileId) => eveBabelApp.deleteLlmProviderProfile(profileId),
       setActiveLlmProviderProfile: (profileId) => eveBabelApp.setActiveLlmProviderProfile(profileId),
-      fetchLlmProviderModels: (input) => eveBabelApp.fetchLlmProviderModels(input)
+      fetchLlmProviderModels: (input) => eveBabelApp.fetchLlmProviderModels(input),
+      getApiKeyForProfile: (profileId) => eveBabelApp.getApiKeyForProfile(profileId)
     })
     nativeTheme.on('updated', () => {
       eveBabelApp.refreshNativeTheme()

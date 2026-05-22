@@ -222,6 +222,7 @@ export interface EveBabelApi {
   deleteLlmProviderProfile: (profileId: string) => Promise<BootstrapPayload>
   setActiveLlmProviderProfile: (profileId: string) => Promise<BootstrapPayload>
   fetchLlmProviderModels: (input: FetchLlmProviderModelsInput) => Promise<LlmProviderModel[]>
+  getApiKeyForProfile: (profileId: string) => Promise<string | null>
   onMessagesUpsert: (listener: (messages: ChatMessage[]) => void) => () => void
   onChannelsUpdate: (listener: (channels: ChannelSummary[]) => void) => () => void
   onStatusUpdate: (
