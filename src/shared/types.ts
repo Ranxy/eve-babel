@@ -19,7 +19,7 @@ export const DEFAULT_TARGET_LANGUAGE: TargetLanguage = 'zh-CN'
 export const DEFAULT_TRANSLATION_PROMPT =
   'Translate incoming EVE Online chat messages into {{targetLanguage}}. Preserve EVE-specific terms where appropriate. Return translation only.'
 
-export const SUPPORTED_LLM_PROVIDER_IDS = ['openai', 'deepseek'] as const
+export const SUPPORTED_LLM_PROVIDER_IDS = ['openai', 'deepseek', 'openrouter'] as const
 
 export type LlmProviderId = (typeof SUPPORTED_LLM_PROVIDER_IDS)[number]
 

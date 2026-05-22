@@ -50,6 +50,7 @@ function SearchIcon() {
 function getProviderApiKeyLink(provider: LlmProviderDefinition): string | null {
   if (provider.providerId === 'openai') return 'https://platform.openai.com/api-keys'
   if (provider.providerId === 'deepseek') return 'https://platform.deepseek.com/api_keys'
+  if (provider.providerId === 'openrouter') return 'https://openrouter.ai/settings/keys'
   return null
 }
 

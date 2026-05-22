@@ -12,6 +12,12 @@ const BUILTIN_PROVIDER_DEFINITIONS: LlmProviderDefinition[] = [
     label: 'DeepSeek',
     description: 'DeepSeek AI models.',
     defaultApiBaseUrl: 'https://api.deepseek.com'
+  },
+  {
+    providerId: 'openrouter',
+    label: 'OpenRouter',
+    description: 'OpenRouter aggregates hundreds of models from multiple providers via a single API.',
+    defaultApiBaseUrl: 'https://openrouter.ai/api/v1'
   }
 ]
 
@@ -45,7 +51,8 @@ export async function fetchBuiltinProviderModels(input: FetchLlmProviderModelsIn
 
   switch (input.providerId) {
     case 'openai':
-    case 'deepseek': {
+    case 'deepseek':
+    case 'openrouter': {
       const response = await fetch(`${baseUrl}/models`, {
         method: 'GET',
         headers: {
