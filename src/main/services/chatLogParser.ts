@@ -89,7 +89,7 @@ export class ChatLogParser {
 
       const [, rawTimestamp, senderName, messageText] = messageMatch
       const timestamp = toIsoTimestamp(rawTimestamp)
-      const messageType = senderName === 'EVE System' ? 'system' : 'chat'
+      const messageType = senderName === 'EVE System' || senderName === 'Message' ? 'system' : 'chat'
       const normalizedText = messageText.trim()
 
       if (!normalizedText) {

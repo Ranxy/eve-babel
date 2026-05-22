@@ -146,17 +146,19 @@ export function MessageFeed(props: MessageFeedProps) {
                 >
                   <div className="chat-message-meta">
                     <span className="chat-sender-group">
-                      {props.portraits[message.senderName] ? (
-                        <img
-                          alt={message.senderName}
-                          className="chat-avatar"
-                          loading="lazy"
-                          src={props.portraits[message.senderName]}
-                        />
-                      ) : (
-                        <span aria-hidden="true" className="chat-avatar chat-avatar-placeholder">
-                          {message.senderName.charAt(0).toUpperCase()}
-                        </span>
+                      {message.messageType === 'chat' && (
+                        props.portraits[message.senderName] ? (
+                          <img
+                            alt={message.senderName}
+                            className="chat-avatar"
+                            loading="lazy"
+                            src={props.portraits[message.senderName]}
+                          />
+                        ) : (
+                          <span aria-hidden="true" className="chat-avatar chat-avatar-placeholder">
+                            {message.senderName.charAt(0).toUpperCase()}
+                          </span>
+                        )
                       )}
                       <span className="chat-sender">{message.senderName}</span>
                     </span>
