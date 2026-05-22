@@ -8,8 +8,24 @@ interface ChannelListProps {
   onTogglePinned: (channelName: string, pinned: boolean) => void
 }
 
+function toDateDay(timestamp: string | null): string {
+  if (!timestamp) return ''
+  return timestamp.slice(0, 10)
+}
+
+function sortedChannels(channels: ChannelSummary[]): ChannelSummary[] {
+  return [...channels].sort((a, b) => {
+    if (a.pinned !== b.pinned) return a.pinned ? -1 : 1
+    const dayA = toDateDay(a.latestSessionStarted)
+    const dayB = toDateDay(b.latestSessionStarted)
+    if (dayB !== dayA) return dayB.localeCompare(dayA)
+    return a.channelName.localeCompare(b.channelName)
+  })
+}
+
 export function ChannelList(props: ChannelListProps) {
   const selectedChannel = props.channels.find((channel) => channel.channelName === props.selectedChannelName) ?? null
+  const sorted = sortedChannels(props.channels)
 
   return (
     <section className="channel-sidebar">
@@ -22,7 +38,7 @@ export function ChannelList(props: ChannelListProps) {
       </div>
       <div className="channel-list channel-list-scroll">
         {props.channels.length === 0 ? <div className="empty-state">No channels were discovered for the selected character.</div> : null}
-        {props.channels.map((channel) => {
+        {sorted.map((channel) => {
           const isSelected = channel.channelName === props.selectedChannelName
 
           return (
@@ -39,7 +55,7 @@ export function ChannelList(props: ChannelListProps) {
                 </div>
                 <div className="channel-row-foot">
                   <span className={`channel-state ${channel.enabled ? 'is-live' : 'is-muted'}`}>
-                    {channel.enabled ? 'Live' : 'Muted'}
+                    {channel.enabled ? 'Translation On' : 'Translation Off'}
                   </span>
                 </div>
               </button>
@@ -53,7 +69,6 @@ export function ChannelList(props: ChannelListProps) {
                   {channel.pinned ? 'Pinned' : 'Pin'}
                 </button>
                 <label className="channel-toggle">
-                  <span className="channel-toggle-label">{channel.enabled ? 'On' : 'Off'}</span>
                   <input
                     checked={channel.enabled}
                     onChange={(event) => props.onToggleChannel(channel.channelName, event.target.checked)}
