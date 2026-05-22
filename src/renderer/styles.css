@@ -725,6 +725,40 @@ h3 {
   overflow: hidden;
 }
 
+.message-panel-root {
+  position: relative;
+}
+
+.scroll-to-bottom-btn {
+  position: absolute;
+  bottom: 20px;
+  right: 28px;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  border: 1px solid var(--border);
+  background: var(--panel-hero-surface);
+  color: var(--accent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: 0 4px 14px rgba(46, 59, 75, 0.14);
+  transition: background 0.15s, box-shadow 0.15s, transform 0.1s;
+  z-index: 10;
+}
+
+.scroll-to-bottom-btn:hover {
+  background: var(--accent-soft);
+  box-shadow: 0 6px 18px rgba(46, 59, 75, 0.18);
+  transform: translateY(-1px);
+}
+
+.scroll-to-bottom-btn:active {
+  transform: translateY(0);
+  box-shadow: 0 2px 8px rgba(46, 59, 75, 0.12);
+}
+
 .message-panel-header {
   padding-bottom: 10px;
   border-bottom: 1px solid var(--border);

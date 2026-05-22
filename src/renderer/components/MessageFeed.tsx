@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 
 import type { ChatMessage, ChannelSummary } from '../../shared/types'
 
@@ -13,6 +13,7 @@ interface MessageFeedProps {
 }
 
 export function MessageFeed(props: MessageFeedProps) {
+  const [showScrollToBottom, setShowScrollToBottom] = useState(false)
   const messageFeedRef = useRef<HTMLDivElement | null>(null)
   const previousChannelRef = useRef<string | null>(null)
   const previousEdgeIdsRef = useRef<{ firstId: string | null; lastId: string | null }>({ firstId: null, lastId: null })
@@ -60,7 +61,13 @@ export function MessageFeed(props: MessageFeedProps) {
 
   const handleScroll = () => {
     const container = messageFeedRef.current
-    if (!container || !props.hasMoreHistory || props.isLoadingMessages || visibleMessages.length === 0) {
+    if (!container) {
+      return
+    }
+
+    setShowScrollToBottom(!isNearBottom(container))
+
+    if (!props.hasMoreHistory || props.isLoadingMessages || visibleMessages.length === 0) {
       return
     }
 
@@ -75,8 +82,16 @@ export function MessageFeed(props: MessageFeedProps) {
     props.onLoadOlder()
   }
 
+  const handleScrollToBottom = () => {
+    const container = messageFeedRef.current
+    if (!container) {
+      return
+    }
+    container.scrollTo({ top: container.scrollHeight, behavior: 'smooth' })
+  }
+
   return (
-    <section className="panel message-panel">
+    <section className="panel message-panel message-panel-root">
       <div className="panel-header message-panel-header">
         <div>
           <div className="eyebrow">Conversation</div>
@@ -165,6 +180,18 @@ export function MessageFeed(props: MessageFeedProps) {
           </>
         )}
       </div>
+      {showScrollToBottom && visibleMessages.length > 0 ? (
+        <button
+          aria-label="Scroll to latest message"
+          className="scroll-to-bottom-btn"
+          onClick={handleScrollToBottom}
+          title="Scroll to latest"
+        >
+          <svg aria-hidden="true" fill="none" height="18" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" viewBox="0 0 24 24" width="18" xmlns="http://www.w3.org/2000/svg">
+            <polyline points="6 9 12 15 18 9" />
+          </svg>
+        </button>
+      ) : null}
     </section>
   )
 }
