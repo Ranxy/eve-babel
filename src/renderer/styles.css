@@ -362,6 +362,10 @@ h3 {
   outline: none;
 }
 
+.toolbar-select-field-narrow {
+  min-width: 0;
+}
+
 .toolbar-utility-button {
   min-height: 34px;
 }

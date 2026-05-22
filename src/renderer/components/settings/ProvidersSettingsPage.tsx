@@ -1,4 +1,5 @@
 ﻿import { useEffect, useRef, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 
 import type {
   ApiStatus,
@@ -67,6 +68,7 @@ function getProviderApiKeyLink(provider: LlmProviderDefinition): string | null {
 const NEW_CUSTOM_SENTINEL = '__new__'
 
 export function ProvidersSettingsPage(props: ProvidersSettingsPageProps) {
+  const { t } = useTranslation()
   const { providers, profiles, activeProfileId } = props.llmProviderState
 
   // Built-in provider selection
@@ -233,7 +235,7 @@ export function ProvidersSettingsPage(props: ProvidersSettingsPageProps) {
       })
       setFetchedModels(models)
     } catch (err) {
-      setFetchError(err instanceof Error ? err.message : 'Failed to fetch models')
+      setFetchError(err instanceof Error ? err.message : t('providersSettings.models.failedToFetch'))
     } finally {
       setIsFetching(false)
     }
@@ -275,9 +277,9 @@ export function ProvidersSettingsPage(props: ProvidersSettingsPageProps) {
   }
 
   const handleSaveCustom = () => {
-    if (!customName.trim()) { setCustomError('Display name is required.'); return }
-    if (!customBaseUrl.trim()) { setCustomError('API Base URL is required.'); return }
-    if (!customModelName.trim()) { setCustomError('Model name is required.'); return }
+    if (!customName.trim()) { setCustomError(t('providersSettings.validation.nameRequired')); return }
+    if (!customBaseUrl.trim()) { setCustomError(t('providersSettings.validation.urlRequired')); return }
+    if (!customModelName.trim()) { setCustomError(t('providersSettings.validation.modelRequired')); return }
     setCustomError(null)
 
     const isNew = selectedCustomId === NEW_CUSTOM_SENTINEL
@@ -310,7 +312,7 @@ export function ProvidersSettingsPage(props: ProvidersSettingsPageProps) {
         <label className="providers-search-field">
           <SearchIcon />
           <input
-            placeholder="Search providers..."
+            placeholder={t('providersSettings.searchPlaceholder')}
             type="search"
             value={providerSearch}
             onChange={(e) => setProviderSearch(e.target.value)}
@@ -318,7 +320,7 @@ export function ProvidersSettingsPage(props: ProvidersSettingsPageProps) {
         </label>
         <button className="ghost-button providers-add-custom-btn" type="button" onClick={handleAddCustom}>
           <PlusIcon />
-          Add Custom Provider
+          {t('providersSettings.addCustomProvider')}
         </button>
       </div>
 
@@ -339,10 +341,10 @@ export function ProvidersSettingsPage(props: ProvidersSettingsPageProps) {
                 <span className="providers-list-item-meta">
                   {provProfiles.length > 0 ? (
                     <span className={`chip ${isActive ? 'chip-ok' : 'chip-neutral'}`}>
-                      {provProfiles.length} model{provProfiles.length !== 1 ? 's' : ''}
+                      {t('providersSettings.status.model', { count: provProfiles.length })}
                     </span>
                   ) : (
-                    <span className="chip chip-neutral">Not configured</span>
+                    <span className="chip chip-neutral">{t('providersSettings.notConfigured')}</span>
                   )}
                 </span>
               </button>
@@ -350,7 +352,7 @@ export function ProvidersSettingsPage(props: ProvidersSettingsPageProps) {
           })}
 
           {(filteredCustomProfiles.length > 0 || selectedCustomId === NEW_CUSTOM_SENTINEL) && (
-            <div className="providers-list-section-label">Custom</div>
+            <div className="providers-list-section-label">{t('providersSettings.customSection')}</div>
           )}
 
           {filteredCustomProfiles.map((profile) => {
@@ -362,10 +364,10 @@ export function ProvidersSettingsPage(props: ProvidersSettingsPageProps) {
                 type="button"
                 onClick={() => handleSelectCustom(profile.profileId)}
               >
-                <span className="providers-list-item-label">{profile.customLabel || 'Unnamed Provider'}</span>
+                <span className="providers-list-item-label">{profile.customLabel || t('providersSettings.unnamedProvider')}</span>
                 <span className="providers-list-item-meta">
                   <span className={`chip ${isActive ? 'chip-ok' : 'chip-neutral'}`}>
-                    {isActive ? 'Active' : profile.modelName}
+                    {isActive ? t('providersSettings.status.active') : profile.modelName}
                   </span>
                 </span>
               </button>
@@ -378,9 +380,9 @@ export function ProvidersSettingsPage(props: ProvidersSettingsPageProps) {
               type="button"
               onClick={handleAddCustom}
             >
-              <span className="providers-list-item-label">New Custom Provider</span>
+              <span className="providers-list-item-label">{t('providersSettings.newCustomProvider')}</span>
               <span className="providers-list-item-meta">
-                <span className="chip chip-neutral">Draft</span>
+                <span className="chip chip-neutral">{t('providersSettings.draft')}</span>
               </span>
             </button>
           )}
@@ -392,16 +394,16 @@ export function ProvidersSettingsPage(props: ProvidersSettingsPageProps) {
             <div className="providers-detail-top">
               <div className="providers-heading-row">
                 <h2 className="providers-detail-title">
-                  {selectedCustomId === NEW_CUSTOM_SENTINEL ? 'New Custom Provider' : (customName || 'Custom Provider')}
+                  {selectedCustomId === NEW_CUSTOM_SENTINEL ? t('providersSettings.newCustomProvider') : (customName || t('providersSettings.customProvider'))}
                 </h2>
                 {selectedCustomId !== NEW_CUSTOM_SENTINEL && (
                   <span className={`chip ${customIsActive ? 'chip-ok' : 'chip-neutral'}`}>
-                    {customIsActive ? 'Active' : 'Inactive'}
+                    {customIsActive ? t('providersSettings.status.active') : t('providersSettings.status.inactive')}
                   </span>
                 )}
               </div>
               <p className="providers-detail-desc">
-                Connect any OpenAI-compatible API endpoint with a custom name and model.
+                {t('providersSettings.customDescription')}
               </p>
             </div>
 
@@ -409,13 +411,11 @@ export function ProvidersSettingsPage(props: ProvidersSettingsPageProps) {
 
             <div className="providers-form-section">
               <div className="providers-form-section-head">
-                <span className="eyebrow">Display Name</span>
+                <span className="eyebrow">{t('providersSettings.displayName.eyebrow')}</span>
               </div>
               <input
                 className="providers-text-input"
-                placeholder="My Custom Provider"
-                spellCheck={false}
-                type="text"
+                placeholder={t('providersSettings.displayName.placeholder')}
                 value={customName}
                 onChange={(e) => setCustomName(e.target.value)}
               />
@@ -425,11 +425,11 @@ export function ProvidersSettingsPage(props: ProvidersSettingsPageProps) {
 
             <div className="providers-form-section">
               <div className="providers-form-section-head">
-                <span className="eyebrow">API Base URL</span>
+                <span className="eyebrow">{t('providersSettings.apiBaseUrl.eyebrow')}</span>
               </div>
               <input
                 className="providers-text-input"
-                placeholder="https://api.example.com/v1"
+                placeholder={t('providersSettings.apiBaseUrl.placeholder')}
                 spellCheck={false}
                 type="url"
                 value={customBaseUrl}
@@ -441,7 +441,7 @@ export function ProvidersSettingsPage(props: ProvidersSettingsPageProps) {
 
             <div className="providers-form-section">
               <div className="providers-form-section-head">
-                <span className="eyebrow">API Key</span>
+                <span className="eyebrow">{t('providersSettings.apiKey.eyebrow')}</span>
               </div>
               <div className="providers-api-key-row">
                 <div className="providers-api-key-field">
@@ -452,13 +452,13 @@ export function ProvidersSettingsPage(props: ProvidersSettingsPageProps) {
                         spellCheck={false}
                         type="text"
                         value={customShowStoredKey ? (customStoredKeyValue ?? '..............') : '...............'}
-                        title="Click to replace API key"
+                        title={t('providersSettings.apiKey.replaceTitle')}
                         style={{ cursor: 'pointer', letterSpacing: customShowStoredKey ? undefined : '0.1em' }}
                         onClick={() => { setCustomIsEditingKey(true); setCustomShowStoredKey(false); setCustomStoredKeyValue(null) }}
                       />
                       <button
                         className="providers-eye-btn"
-                        title={customShowStoredKey ? 'Hide key' : 'Show key'}
+                        title={customShowStoredKey ? t('providersSettings.apiKey.hideKey') : t('providersSettings.apiKey.showKey')}
                         type="button"
                         onClick={() => { void handleToggleCustomStoredKey() }}
                       >
@@ -469,7 +469,7 @@ export function ProvidersSettingsPage(props: ProvidersSettingsPageProps) {
                     <>
                       <input
                         autoComplete="off"
-                        placeholder="Paste your API key..."
+                        placeholder={t('providersSettings.apiKey.placeholder')}
                         spellCheck={false}
                         type={customShowApiKey ? 'text' : 'password'}
                         value={customApiKey}
@@ -477,7 +477,7 @@ export function ProvidersSettingsPage(props: ProvidersSettingsPageProps) {
                       />
                       <button
                         className="providers-eye-btn"
-                        title={customShowApiKey ? 'Hide key' : 'Show key'}
+                        title={customShowApiKey ? t('providersSettings.apiKey.hideKey') : t('providersSettings.apiKey.showKey')}
                         type="button"
                         onClick={() => setCustomShowApiKey((v) => !v)}
                       >
@@ -493,11 +493,11 @@ export function ProvidersSettingsPage(props: ProvidersSettingsPageProps) {
 
             <div className="providers-form-section">
               <div className="providers-form-section-head">
-                <span className="eyebrow">Model Name</span>
+                <span className="eyebrow">{t('providersSettings.modelName.eyebrow')}</span>
               </div>
               <input
                 className="providers-text-input"
-                placeholder="e.g. gpt-4o, claude-3-5-sonnet-20241022, ..."
+                placeholder={t('providersSettings.modelName.placeholder')}
                 spellCheck={false}
                 type="text"
                 value={customModelName}
@@ -515,17 +515,17 @@ export function ProvidersSettingsPage(props: ProvidersSettingsPageProps) {
                     type="button"
                     onClick={() => props.onSetActiveLlmProviderProfile(selectedCustomId!)}
                   >
-                    Set Active
+                    {t('providersSettings.actions.setActive')}
                   </button>
                 )}
                 {selectedCustomId !== NEW_CUSTOM_SENTINEL && (
                   <button className="ghost-button providers-danger-btn" type="button" onClick={handleDeleteCustom}>
-                    Delete
+                    {t('providersSettings.actions.delete')}
                   </button>
                 )}
               </div>
               <button className="providers-save-btn" type="button" onClick={handleSaveCustom}>
-                {selectedCustomId === NEW_CUSTOM_SENTINEL ? 'Add Provider' : 'Save Changes'}
+                {selectedCustomId === NEW_CUSTOM_SENTINEL ? t('providersSettings.actions.addProvider') : t('providersSettings.actions.saveChanges')}
               </button>
             </div>
           </div>
@@ -536,7 +536,7 @@ export function ProvidersSettingsPage(props: ProvidersSettingsPageProps) {
                 <div className="providers-heading-row">
                   <h2 className="providers-detail-title">{selectedProvider.label}</h2>
                   <span className={`chip ${isProviderSelected ? 'chip-ok' : 'chip-neutral'}`}>
-                    {isProviderSelected ? 'Active' : enabledCount > 0 ? `${enabledCount} enabled` : 'Not configured'}
+                    {isProviderSelected ? t('providersSettings.status.active') : enabledCount > 0 ? t('providersSettings.status.model', { count: enabledCount }) : t('providersSettings.notConfigured')}
                   </span>
                 </div>
                 <p className="providers-detail-desc">{selectedProvider.description}</p>
@@ -546,7 +546,7 @@ export function ProvidersSettingsPage(props: ProvidersSettingsPageProps) {
 
               <div className="providers-form-section">
                 <div className="providers-form-section-head">
-                  <span className="eyebrow">API Key</span>
+                  <span className="eyebrow">{t('providersSettings.apiKey.eyebrow')}</span>
                 </div>
                 <div className="providers-api-key-row">
                   <div className="providers-api-key-field">
@@ -557,13 +557,13 @@ export function ProvidersSettingsPage(props: ProvidersSettingsPageProps) {
                           spellCheck={false}
                           type="text"
                           value={showStoredKey ? (storedKeyValue ?? '...............') : '...............'}
-                          title="Click to replace API key"
+                          title={t('providersSettings.apiKey.replaceTitle')}
                           style={{ cursor: 'pointer', letterSpacing: showStoredKey ? undefined : '0.1em' }}
                           onClick={() => { setIsEditingKey(true); setShowStoredKey(false); setStoredKeyValue(null) }}
                         />
                         <button
                           className="providers-eye-btn"
-                          title={showStoredKey ? 'Hide key' : 'Show key'}
+                          title={showStoredKey ? t('providersSettings.apiKey.hideKey') : t('providersSettings.apiKey.showKey')}
                           type="button"
                           onClick={() => { void handleToggleStoredKey() }}
                         >
@@ -574,7 +574,7 @@ export function ProvidersSettingsPage(props: ProvidersSettingsPageProps) {
                       <>
                         <input
                           autoComplete="off"
-                          placeholder="Paste your API key..."
+                          placeholder={t('providersSettings.apiKey.placeholder')}
                           spellCheck={false}
                           type={showApiKey ? 'text' : 'password'}
                           value={apiKey}
@@ -582,7 +582,7 @@ export function ProvidersSettingsPage(props: ProvidersSettingsPageProps) {
                         />
                         <button
                           className="providers-eye-btn"
-                          title={showApiKey ? 'Hide key' : 'Show key'}
+                          title={showApiKey ? t('providersSettings.apiKey.hideKey') : t('providersSettings.apiKey.showKey')}
                           type="button"
                           onClick={() => setShowApiKey((v) => !v)}
                         >
@@ -593,7 +593,7 @@ export function ProvidersSettingsPage(props: ProvidersSettingsPageProps) {
                   </div>
                   {apiKeyLink && (
                     <a className="providers-key-link" href={apiKeyLink} rel="noreferrer" target="_blank">
-                      Get API key
+                      {t('providersSettings.apiKey.getKey')}
                     </a>
                   )}
                 </div>
@@ -603,9 +603,9 @@ export function ProvidersSettingsPage(props: ProvidersSettingsPageProps) {
 
               <div className="providers-form-section providers-models-section">
                 <div className="providers-form-section-head">
-                  <span className="eyebrow">Models</span>
+                  <span className="eyebrow">{t('providersSettings.models.eyebrow')}</span>
                   <button className="ghost-button" disabled={isFetching} type="button" onClick={handleFetch}>
-                    {isFetching ? 'Fetching...' : 'Fetch models'}
+                    {isFetching ? t('providersSettings.models.fetching') : t('providersSettings.models.fetchModels')}
                   </button>
                 </div>
 
@@ -617,7 +617,7 @@ export function ProvidersSettingsPage(props: ProvidersSettingsPageProps) {
                       <label className="providers-search-field providers-model-search">
                         <SearchIcon />
                         <input
-                          placeholder="Search models..."
+                          placeholder={t('providersSettings.models.searchPlaceholder')}
                           type="search"
                           value={modelSearchQuery}
                           onChange={(e) => setModelSearchQuery(e.target.value)}
@@ -625,7 +625,7 @@ export function ProvidersSettingsPage(props: ProvidersSettingsPageProps) {
                       </label>
                     )}
                     <div className="providers-model-count">
-                      Showing {shownCount} model{shownCount !== 1 ? 's' : ''} · {enabledCount} enabled
+                      {t('providersSettings.models.showing', { count: shownCount, enabled: enabledCount })}
                     </div>
                     <div className="providers-model-list">
                       {sortedModels.map((model) => {
@@ -659,8 +659,8 @@ export function ProvidersSettingsPage(props: ProvidersSettingsPageProps) {
                 {!isFetching && sortedModels.length === 0 && (
                   <div className="providers-empty-models">
                     {referenceProfileId
-                      ? 'Click "Fetch models" to load available models.'
-                      : 'Enter an API key and click "Fetch models" to see available models.'}
+                      ? t('providersSettings.models.fetchHintHasKey')
+                      : t('providersSettings.models.fetchHintNoKey')}
                   </div>
                 )}
               </div>

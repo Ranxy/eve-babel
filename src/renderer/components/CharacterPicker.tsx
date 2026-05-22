@@ -1,3 +1,5 @@
+import { useTranslation } from 'react-i18next'
+
 import type { CharacterSummary } from '../../shared/types'
 
 interface CharacterPickerProps {
@@ -7,12 +9,13 @@ interface CharacterPickerProps {
 }
 
 export function CharacterPicker(props: CharacterPickerProps) {
+  const { t } = useTranslation()
   return (
     <section className="panel panel-hero">
-      <div className="eyebrow">Character Selection</div>
-      <h1>Pick the active EVE pilot</h1>
+      <div className="eyebrow">{t('characterPicker.eyebrow')}</div>
+      <h1>{t('characterPicker.title')}</h1>
       <p className="hero-copy">
-        Channel discovery is scoped to one character at a time so Local, corp, and private chats stay separated by the log files that actually own them.
+        {t('characterPicker.description')}
       </p>
       <div className="character-grid">
         {props.characters.map((character) => {
@@ -26,9 +29,9 @@ export function CharacterPicker(props: CharacterPickerProps) {
               type="button"
             >
               <span className="character-label">{character.label}</span>
-              <span className="character-meta">Character ID {character.characterId}</span>
-              <span className="character-meta">{character.availableChannelCount} channels</span>
-              <span className="character-meta">{character.logFileCount} sessions</span>
+              <span className="character-meta">{t('characterPicker.characterId', { id: character.characterId })}</span>
+              <span className="character-meta">{t('characterPicker.channels', { count: character.availableChannelCount })}</span>
+              <span className="character-meta">{t('characterPicker.sessions', { count: character.logFileCount })}</span>
             </button>
           )
         })}

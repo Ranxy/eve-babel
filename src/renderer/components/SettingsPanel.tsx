@@ -1,4 +1,5 @@
 import { type ReactNode, useEffect, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 
 import type {
   ApiStatus,
@@ -14,6 +15,12 @@ import { ProvidersSettingsPage } from './settings/ProvidersSettingsPage'
 
 type SettingsSection = 'general' | 'providers'
 
+interface SettingsSectionDef {
+  id: SettingsSection
+  label: string
+  icon: ReactNode
+}
+
 interface SettingsPanelProps {
   config: AppConfig
   apiStatus: ApiStatus
@@ -28,35 +35,33 @@ interface SettingsPanelProps {
   onFetchLlmProviderModels: (input: FetchLlmProviderModelsInput) => Promise<LlmProviderModel[]>
 }
 
-const SETTINGS_SECTIONS: Array<{ id: SettingsSection; label: string; icon: ReactNode }> = [
-  {
-    id: 'general',
-    label: 'General',
-    icon: (
-      <svg width="15" height="15" viewBox="0 0 15 15" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round">
-        <line x1="2" y1="5" x2="13" y2="5" />
-        <circle cx="10" cy="5" r="1.6" fill="currentColor" stroke="none" />
-        <line x1="2" y1="10" x2="13" y2="10" />
-        <circle cx="5" cy="10" r="1.6" fill="currentColor" stroke="none" />
-      </svg>
-    )
-  },
-  {
-    id: 'providers',
-    label: 'Providers',
-    icon: (
-      <svg width="15" height="15" viewBox="0 0 15 15" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round">
-        <rect x="1" y="1" width="5.5" height="5.5" rx="1.2" />
-        <rect x="8.5" y="1" width="5.5" height="5.5" rx="1.2" />
-        <rect x="1" y="8.5" width="5.5" height="5.5" rx="1.2" />
-        <rect x="8.5" y="8.5" width="5.5" height="5.5" rx="1.2" />
-      </svg>
-    )
-  }
-]
+const SECTION_ICONS: Record<SettingsSection, ReactNode> = {
+  general: (
+    <svg width="15" height="15" viewBox="0 0 15 15" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round">
+      <line x1="2" y1="5" x2="13" y2="5" />
+      <circle cx="10" cy="5" r="1.6" fill="currentColor" stroke="none" />
+      <line x1="2" y1="10" x2="13" y2="10" />
+      <circle cx="5" cy="10" r="1.6" fill="currentColor" stroke="none" />
+    </svg>
+  ),
+  providers: (
+    <svg width="15" height="15" viewBox="0 0 15 15" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="1" y="1" width="5.5" height="5.5" rx="1.2" />
+      <rect x="8.5" y="1" width="5.5" height="5.5" rx="1.2" />
+      <rect x="1" y="8.5" width="5.5" height="5.5" rx="1.2" />
+      <rect x="8.5" y="8.5" width="5.5" height="5.5" rx="1.2" />
+    </svg>
+  ),
+}
 
 export function SettingsPanel(props: SettingsPanelProps) {
+  const { t } = useTranslation()
   const [selectedSection, setSelectedSection] = useState<SettingsSection>('providers')
+
+  const SETTINGS_SECTIONS: SettingsSectionDef[] = [
+    { id: 'general', label: t('settingsPanel.sections.general'), icon: SECTION_ICONS.general },
+    { id: 'providers', label: t('settingsPanel.sections.providers'), icon: SECTION_ICONS.providers },
+  ]
 
   useEffect(() => {
     if (props.forceLlmSetup) {
@@ -67,7 +72,7 @@ export function SettingsPanel(props: SettingsPanelProps) {
   return (
     <div className="settings-shell">
       <aside className="settings-sidebar">
-        <nav className="settings-sidebar-nav" aria-label="Settings sections">
+        <nav className="settings-sidebar-nav" aria-label={t('settingsPanel.ariaLabel')}>
           {SETTINGS_SECTIONS.map((section) => (
             <button
               className={`settings-sidebar-item ${selectedSection === section.id ? 'active' : ''}`}
@@ -107,13 +112,13 @@ export function SettingsPanel(props: SettingsPanelProps) {
       </div>
 
       <footer className="settings-footer">
-        <span className="settings-footer-status">All changes saved</span>
+        <span className="settings-footer-status">{t('settingsPanel.footer.allSaved')}</span>
         <div className="settings-footer-actions">
           <button className="ghost-button" onClick={() => window.close()} type="button">
-            Close
+            {t('settingsPanel.footer.close')}
           </button>
           <button className="primary-button" disabled type="button">
-            Save
+            {t('settingsPanel.footer.save')}
           </button>
         </div>
       </footer>

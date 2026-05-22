@@ -1,3 +1,5 @@
+import { useTranslation } from 'react-i18next'
+
 import type { ChannelSummary } from '../../shared/types'
 
 interface ChannelListProps {
@@ -24,6 +26,7 @@ function sortedChannels(channels: ChannelSummary[]): ChannelSummary[] {
 }
 
 export function ChannelList(props: ChannelListProps) {
+  const { t } = useTranslation()
   const selectedChannel = props.channels.find((channel) => channel.channelName === props.selectedChannelName) ?? null
   const sorted = sortedChannels(props.channels)
 
@@ -31,13 +34,13 @@ export function ChannelList(props: ChannelListProps) {
     <section className="channel-sidebar">
       <div className="panel-header channel-sidebar-header">
         <div>
-          <div className="eyebrow">Channels</div>
-          <h2>Routes</h2>
+          <div className="eyebrow">{t('channelList.eyebrow')}</div>
+          <h2>{t('channelList.title')}</h2>
         </div>
-        <span className="chip">{selectedChannel ? 'Focused' : `${props.channels.length} total`}</span>
+        <span className="chip">{selectedChannel ? t('channelList.focused') : t('channelList.total', { count: props.channels.length })}</span>
       </div>
       <div className="channel-list channel-list-scroll">
-        {props.channels.length === 0 ? <div className="empty-state">No channels were discovered for the selected character.</div> : null}
+        {props.channels.length === 0 ? <div className="empty-state">{t('channelList.noChannels')}</div> : null}
         {sorted.map((channel) => {
           const isSelected = channel.channelName === props.selectedChannelName
 
@@ -48,25 +51,25 @@ export function ChannelList(props: ChannelListProps) {
                   <div className="channel-row-copy">
                     <div className="channel-name">{channel.channelName}</div>
                     <div className="channel-meta channel-meta-inline">
-                      <span>{channel.messageCount} msgs</span>
-                      <span>{formatSessionLabel(channel.latestSessionStarted)}</span>
+                      <span>{t('channelList.msgCount', { count: channel.messageCount })}</span>
+                      <span>{formatSessionLabel(channel.latestSessionStarted, t('channelList.noSession'))}</span>
                     </div>
                   </div>
                 </div>
                 <div className="channel-row-foot">
                   <span className={`channel-state ${channel.enabled ? 'is-live' : 'is-muted'}`}>
-                    {channel.enabled ? 'Translation On' : 'Translation Off'}
+                      {channel.enabled ? t('channelList.translationOn') : t('channelList.translationOff')}
                   </span>
                 </div>
               </button>
               <div className="channel-actions">
                 <button
-                  aria-label={channel.pinned ? `Unpin ${channel.channelName}` : `Pin ${channel.channelName}`}
+                  aria-label={channel.pinned ? t('channelList.unpinLabel', { name: channel.channelName }) : t('channelList.pinLabel', { name: channel.channelName })}
                   className={`channel-pin-button ${channel.pinned ? 'is-pinned' : ''}`}
                   onClick={() => props.onTogglePinned(channel.channelName, !channel.pinned)}
                   type="button"
                 >
-                  {channel.pinned ? 'Pinned' : 'Pin'}
+                  {channel.pinned ? t('channelList.pinned') : t('channelList.pin')}
                 </button>
                 <label className="channel-toggle">
                   <input
@@ -84,9 +87,9 @@ export function ChannelList(props: ChannelListProps) {
   )
 }
 
-function formatSessionLabel(timestamp: string | null): string {
+function formatSessionLabel(timestamp: string | null, noSessionText: string): string {
   if (!timestamp) {
-    return 'No session'
+    return noSessionText
   }
 
   return new Date(timestamp).toLocaleDateString([], {

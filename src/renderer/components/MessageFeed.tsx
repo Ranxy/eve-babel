@@ -1,4 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
+import type { TFunction } from 'i18next'
+import { useTranslation } from 'react-i18next'
 
 import type { ChatMessage, ChannelSummary } from '../../shared/types'
 
@@ -14,6 +16,7 @@ interface MessageFeedProps {
 }
 
 export function MessageFeed(props: MessageFeedProps) {
+  const { t } = useTranslation()
   const [showScrollToBottom, setShowScrollToBottom] = useState(false)
   const messageFeedRef = useRef<HTMLDivElement | null>(null)
   const previousChannelRef = useRef<string | null>(null)
@@ -95,42 +98,42 @@ export function MessageFeed(props: MessageFeedProps) {
     <section className="panel message-panel message-panel-root">
       <div className="panel-header message-panel-header">
         <div>
-          <div className="eyebrow">Conversation</div>
-          <h2>{selectedChannel?.channelName ?? 'Choose a channel'}</h2>
+          <div className="eyebrow">{t('messageFeed.eyebrow')}</div>
+          <h2>{selectedChannel?.channelName ?? t('messageFeed.chooseChannel')}</h2>
           {selectedChannel ? (
             <p className="conversation-subtitle">
-              {selectedChannel.enabled ? 'New arrivals are queued into live translation.' : 'This route is visible but translation is currently muted.'}
+              {selectedChannel.enabled ? t('messageFeed.subtitleLive') : t('messageFeed.subtitleMuted')}
             </p>
           ) : null}
           <div className="conversation-meta-row">
             {props.selectedCharacterLabel ? <span className="chip chip-neutral">{props.selectedCharacterLabel}</span> : null}
             {selectedChannel ? (
               <span className={`chip ${selectedChannel.enabled ? 'chip-ok' : 'chip-neutral'}`}>
-                {selectedChannel.enabled ? 'Translation live' : 'Translation muted'}
+                {selectedChannel.enabled ? t('messageFeed.translationLive') : t('messageFeed.translationMuted')}
               </span>
             ) : null}
           </div>
         </div>
         <div className="message-panel-summary">
           <span className="message-panel-count">{visibleMessages.length}</span>
-          <span className="status-label">messages</span>
+          <span className="status-label">{t('messageFeed.messages')}</span>
         </div>
       </div>
       <div className="message-feed chat-thread" onScroll={handleScroll} ref={messageFeedRef}>
         {!props.selectedChannelName ? (
-          <div className="empty-state">Select a channel on the left to open its conversation stream.</div>
+          <div className="empty-state">{t('messageFeed.selectChannelHint')}</div>
         ) : props.isLoadingMessages && visibleMessages.length === 0 ? (
-          <div className="empty-state">Loading cached messages…</div>
+          <div className="empty-state">{t('messageFeed.loadingMessages')}</div>
         ) : visibleMessages.length === 0 ? (
-          <div className="empty-state">This channel has no cached messages yet.</div>
+          <div className="empty-state">{t('messageFeed.noMessages')}</div>
         ) : (
           <>
             <div className="history-indicator">
               {props.isLoadingMessages
-                ? 'Loading earlier cached messages…'
+                ? t('messageFeed.loadingEarlier')
                 : props.hasMoreHistory
-                  ? 'Scroll upward to load earlier messages.'
-                  : 'Reached the start of cached history.'}
+                  ? t('messageFeed.scrollForEarlier')
+                  : t('messageFeed.reachedStart')}
             </div>
             {visibleMessages.map((message) => {
               const showTranslation = shouldShowTranslation(message)
@@ -177,17 +180,17 @@ export function MessageFeed(props: MessageFeedProps) {
                         )}
                         {showTranslationStatus ? (
                           <span
-                            aria-label={resolveTranslationIndicatorLabel(message.translationStatus)}
+                            aria-label={resolveTranslationIndicatorLabel(message.translationStatus, t)}
                             className={`translation-indicator ${resolveTranslationIndicatorTone(message.translationStatus)}`}
-                            title={resolveTranslationIndicatorLabel(message.translationStatus)}
+                            title={resolveTranslationIndicatorLabel(message.translationStatus, t)}
                           />
                         ) : null}
                       </div>
                     </div>
                     {showSecondBubble ? (
                       <div className="chat-bubble chat-bubble-translation">
-                        <span className="chat-section-label">Translation</span>
-                        {resolveTranslationCopy(message)}
+                        <span className="chat-section-label">{t('messageFeed.translationLabel')}</span>
+                        {resolveTranslationCopy(message, t)}
                       </div>
                     ) : null}
                   </div>
@@ -199,10 +202,10 @@ export function MessageFeed(props: MessageFeedProps) {
       </div>
       {showScrollToBottom && visibleMessages.length > 0 ? (
         <button
-          aria-label="Scroll to latest message"
+          aria-label={t('messageFeed.scrollToLatest')}
           className="scroll-to-bottom-btn"
           onClick={handleScrollToBottom}
-          title="Scroll to latest"
+          title={t('messageFeed.scrollToLatestTitle')}
         >
           <svg aria-hidden="true" fill="none" height="18" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" viewBox="0 0 24 24" width="18" xmlns="http://www.w3.org/2000/svg">
             <polyline points="6 9 12 15 18 9" />
@@ -225,7 +228,7 @@ function shouldShowTranslation(message: ChatMessage): boolean {
   return message.translationStatus === 'queued' || message.translationStatus === 'translating' || message.translationStatus === 'translated'
 }
 
-function resolveTranslationCopy(message: ChatMessage): string {
+function resolveTranslationCopy(message: ChatMessage, t: TFunction): string {
   if (message.translatedText) {
     return message.translatedText
   }
@@ -234,7 +237,7 @@ function resolveTranslationCopy(message: ChatMessage): string {
     return message.errorMessage
   }
 
-  return 'Waiting for translation.'
+  return t('messageFeed.waitingForTranslation')
 }
 
 function resolveTranslationIndicatorTone(status: ChatMessage['translationStatus']): string {
@@ -261,28 +264,28 @@ function resolveTranslationIndicatorTone(status: ChatMessage['translationStatus'
   return 'is-idle'
 }
 
-function resolveTranslationIndicatorLabel(status: ChatMessage['translationStatus']): string {
+function resolveTranslationIndicatorLabel(status: ChatMessage['translationStatus'], t: TFunction): string {
   if (status === 'translated') {
-    return 'Translated'
+    return t('messageFeed.translationStatus.translated')
   }
 
   if (status === 'error') {
-    return 'Translation error'
+    return t('messageFeed.translationStatus.error')
   }
 
   if (status === 'queued') {
-    return 'Queued for translation'
+    return t('messageFeed.translationStatus.queued')
   }
 
   if (status === 'translating') {
-    return 'Translating'
+    return t('messageFeed.translationStatus.translating')
   }
 
   if (status === 'skipped') {
-    return 'Translation skipped'
+    return t('messageFeed.translationStatus.skipped')
   }
 
-  return 'Translation idle'
+  return t('messageFeed.translationStatus.idle')
 }
 
 function formatTime(timestamp: string): string {

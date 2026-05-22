@@ -1,6 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 
 import { TARGET_LANGUAGE_OPTIONS, type ApiStatus, type AppConfig, type CharacterSummary } from '../../shared/types'
+import { SUPPORTED_LOCALES, changeLocale, type SupportedLocaleCode } from '../i18n/index'
+
 
 interface StatusBarProps {
   apiStatus: ApiStatus
@@ -14,6 +17,7 @@ interface StatusBarProps {
 }
 
 export function StatusBar(props: StatusBarProps) {
+  const { t, i18n } = useTranslation()
   const [isCharacterMenuOpen, setIsCharacterMenuOpen] = useState(false)
   const menuRef = useRef<HTMLDivElement | null>(null)
 
@@ -52,7 +56,7 @@ export function StatusBar(props: StatusBarProps) {
     <section className="panel workspace-toolbar">
       <div className="workspace-toolbar-group workspace-toolbar-group-primary">
         <button
-          aria-label={props.isSidebarCollapsed ? 'Show channels' : 'Hide channels'}
+          aria-label={props.isSidebarCollapsed ? t('statusBar.showChannels') : t('statusBar.hideChannels')}
           className="toolbar-icon-button"
           onClick={props.onToggleSidebar}
           type="button"
@@ -69,7 +73,7 @@ export function StatusBar(props: StatusBarProps) {
             onClick={() => setIsCharacterMenuOpen((current) => !current)}
             type="button"
           >
-            <span className="character-menu-title">{selectedCharacter?.label ?? 'No character found'}</span>
+            <span className="character-menu-title">{selectedCharacter?.label ?? t('statusBar.noCharacterFound')}</span>
           </button>
           {isCharacterMenuOpen ? (
             <div className="character-menu-popover">
@@ -87,7 +91,7 @@ export function StatusBar(props: StatusBarProps) {
                     type="button"
                   >
                     <span>{character.label}</span>
-                    <span className="character-menu-item-meta">{character.availableChannelCount} channels</span>
+                    <span className="character-menu-item-meta">{t('channelList.total', { count: character.availableChannelCount })}</span>
                   </button>
                 )
               })}
@@ -97,7 +101,7 @@ export function StatusBar(props: StatusBarProps) {
       </div>
       <div className="workspace-toolbar-group workspace-toolbar-group-secondary">
         <label className="toolbar-pill toolbar-pill-select">
-          <span className="toolbar-pill-label">Target language</span>
+          <span className="toolbar-pill-label">{t('statusBar.targetLanguage')}</span>
           <select
             className="toolbar-select-field"
             value={props.targetLanguage}
@@ -111,10 +115,24 @@ export function StatusBar(props: StatusBarProps) {
           </select>
         </label>
         <div className="toolbar-pill">
-          <span className="toolbar-pill-label">Queue</span>
+          <span className="toolbar-pill-label">{t('statusBar.queue')}</span>
           <strong>{props.apiStatus.queueLength}</strong>
-          <span>{props.apiStatus.activeJobs} active</span>
+          <span>{t('statusBar.active', { count: props.apiStatus.activeJobs })}</span>
         </div>
+        <label className="toolbar-pill toolbar-pill-select">
+          <span className="toolbar-pill-label">{t('statusBar.uiLanguage')}</span>
+          <select
+            className="toolbar-select-field toolbar-select-field-narrow"
+            value={i18n.language}
+            onChange={(event) => changeLocale(event.target.value as SupportedLocaleCode)}
+          >
+            {SUPPORTED_LOCALES.map((locale) => (
+              <option key={locale.code} value={locale.code}>
+                {locale.nativeLabel}
+              </option>
+            ))}
+          </select>
+        </label>
       </div>
     </section>
   )

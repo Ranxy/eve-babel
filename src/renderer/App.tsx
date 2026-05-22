@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 
 import { ChannelList } from './components/ChannelList'
 import { MessageFeed } from './components/MessageFeed'
@@ -7,6 +8,7 @@ import { StatusBar } from './components/StatusBar'
 import { buildChannelStateKey, useAppStore } from './store/appStore'
 
 export function App() {
+  const { t } = useTranslation()
   const { state, actions } = useAppStore()
   const [selectedChannelName, setSelectedChannelName] = useState<string | null>(null)
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false)
@@ -149,27 +151,27 @@ export function App() {
         <section className="workspace-stage">
           {!state.directoryStatus.exists ? (
             <section className="panel panel-hero workspace-placeholder">
-              <div className="eyebrow">Directory Setup</div>
-              <h1>Chatlogs folder not detected</h1>
+              <div className="eyebrow">{t('app.directorySetup.eyebrow')}</div>
+              <h1>{t('app.directorySetup.title')}</h1>
               <p className="hero-copy">{state.directoryStatus.errorMessage}</p>
               <button className="primary-button" onClick={actions.chooseLogDirectory} type="button">
-                Select Chatlogs folder
+                {t('app.directorySetup.cta')}
               </button>
             </section>
           ) : showForcedLlmSetup ? (
             <section className="panel panel-hero workspace-placeholder">
-              <div className="eyebrow">Provider Setup</div>
-              <h1>Translation is paused until a provider profile is configured.</h1>
-              <p className="hero-copy">Open the settings entry from the dock menu, enter an API key, pick one of the discovered models, then activate that profile.</p>
+              <div className="eyebrow">{t('app.providerSetup.eyebrow')}</div>
+              <h1>{t('app.providerSetup.title')}</h1>
+              <p className="hero-copy">{t('app.providerSetup.description')}</p>
               <button className="primary-button" onClick={actions.openSettingsWindow} type="button">
-                Open settings window
+                {t('app.providerSetup.cta')}
               </button>
             </section>
           ) : state.characters.length === 0 ? (
             <section className="panel panel-hero workspace-placeholder">
-              <div className="eyebrow">No Characters</div>
-              <h1>No chat characters found</h1>
-              <p className="hero-copy">Add or select an EVE Chatlogs directory that contains character chat history.</p>
+              <div className="eyebrow">{t('app.noCharacters.eyebrow')}</div>
+              <h1>{t('app.noCharacters.title')}</h1>
+              <p className="hero-copy">{t('app.noCharacters.description')}</p>
             </section>
           ) : (
             <div className={`workspace-surface ${isSidebarCollapsed ? 'sidebar-collapsed' : ''}`}>
@@ -201,13 +203,13 @@ export function App() {
                     {isDockMenuOpen ? (
                       <div className="dock-menu-popover" role="menu">
                         <button className="dock-menu-item" onClick={actions.openSettingsWindow} type="button">
-                          Translation settings
+                          {t('app.dockMenu.settings')}
                         </button>
                         <button className="dock-menu-item" onClick={actions.chooseLogDirectory} type="button">
-                          Change logs folder
+                          {t('app.dockMenu.changeLogs')}
                         </button>
                         <button className="dock-menu-item" onClick={actions.refreshScan} type="button">
-                          Refresh scan
+                          {t('app.dockMenu.refresh')}
                         </button>
                       </div>
                     ) : null}
