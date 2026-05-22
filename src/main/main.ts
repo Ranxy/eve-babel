@@ -213,7 +213,14 @@ class EveBabelApp {
       }
     }
 
-    return this.messageRepository.getChannelMessages(selectedCharacterId, channelName, limit, before ?? undefined)
+    const page = this.messageRepository.getChannelMessages(selectedCharacterId, channelName, limit, before ?? undefined)
+
+    const senderNames = [...new Set(page.messages.filter((m) => m.messageType === 'chat').map((m) => m.senderName))]
+    void this.portraitService.resolvePortraits(senderNames, (portraits) => {
+      this.publishPortraits(portraits)
+    })
+
+    return page
   }
 
   async cancelQueuedTranslations(): Promise<BootstrapPayload> {
