@@ -51,7 +51,6 @@ export function ChannelList(props: ChannelListProps) {
                   <div className="channel-row-copy">
                     <div className="channel-name">{channel.channelName}</div>
                     <div className="channel-meta channel-meta-inline">
-                      <span>{t('channelList.msgCount', { count: channel.messageCount })}</span>
                       <span>{formatSessionLabel(channel.latestSessionStarted, t('channelList.noSession'))}</span>
                     </div>
                   </div>
