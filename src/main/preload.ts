@@ -40,6 +40,11 @@ const api: EveBabelApi = {
     const subscription = (_event: Electron.IpcRendererEvent, payload: Parameters<typeof listener>[0]) => listener(payload)
     ipcRenderer.on('status:update', subscription)
     return () => ipcRenderer.removeListener('status:update', subscription)
+  },
+  onPortraitsUpdate: (listener: (portraits: Record<string, string>) => void) => {
+    const subscription = (_event: Electron.IpcRendererEvent, portraits: Record<string, string>) => listener(portraits)
+    ipcRenderer.on('portraits:update', subscription)
+    return () => ipcRenderer.removeListener('portraits:update', subscription)
   }
 }
 

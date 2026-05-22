@@ -811,6 +811,39 @@ h3 {
   font-size: 0.82rem;
 }
 
+.chat-avatar,
+.chat-avatar-placeholder {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  overflow: hidden;
+}
+
+.chat-avatar {
+  object-fit: cover;
+  border: 1px solid var(--bubble-border);
+  background: var(--row-surface);
+}
+
+.chat-avatar-placeholder {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-size: 0.72rem;
+  font-weight: 700;
+  border: 1px solid var(--bubble-border);
+}
+
+.chat-sender-group {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
 .chat-message.system .chat-message-meta {
   justify-content: center;
 }

@@ -56,6 +56,7 @@ const emptyState: AppStoreState = {
   characters: [],
   channels: [],
   recentMessages: [],
+  portraits: {},
   watcherStatus: {
     state: 'idle',
     watchedChannels: 0,
@@ -135,11 +136,19 @@ export function useAppStore() {
       }))
     })
 
+    const disposePortraits = window.eveBabel.onPortraitsUpdate((portraits) => {
+      setState((currentState) => ({
+        ...currentState,
+        portraits: { ...currentState.portraits, ...portraits }
+      }))
+    })
+
     return () => {
       disposed = true
       disposeMessages()
       disposeChannels()
       disposeStatus()
+      disposePortraits()
     }
   }, [])
 

@@ -219,6 +219,7 @@ export function App() {
                 hasMoreHistory={selectedChannelState?.hasMore ?? false}
                 isLoadingMessages={selectedChannelState?.loading ?? false}
                 messages={selectedChannelState?.messages ?? []}
+                portraits={state.portraits}
                 onLoadOlder={() => {
                   if (selectedChannelName) {
                     void actions.loadOlderChannelMessages(selectedChannelName)

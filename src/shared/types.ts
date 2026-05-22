@@ -178,6 +178,7 @@ export interface BootstrapPayload {
   recentMessages: ChatMessage[]
   watcherStatus: WatcherStatus
   apiStatus: ApiStatus
+  portraits: Record<string, string>
 }
 
 export interface AppSettingsUpdate {
@@ -203,6 +204,7 @@ export interface RendererEvents {
   'messages:upsert': ChatMessage[]
   'channels:update': ChannelSummary[]
   'status:update': Pick<BootstrapPayload, 'directoryStatus' | 'watcherStatus' | 'apiStatus'>
+  'portraits:update': Record<string, string>
 }
 
 export interface EveBabelApi {
@@ -228,6 +230,7 @@ export interface EveBabelApi {
   onStatusUpdate: (
     listener: (payload: Pick<BootstrapPayload, 'directoryStatus' | 'watcherStatus' | 'apiStatus'>) => void
   ) => () => void
+  onPortraitsUpdate: (listener: (portraits: Record<string, string>) => void) => () => void
 }
 
 export interface ParsedChunkResult {

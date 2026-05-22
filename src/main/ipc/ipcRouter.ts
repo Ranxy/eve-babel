@@ -88,3 +88,7 @@ export function emitChannels(window: Electron.BrowserWindow, channels: ChannelSu
 export function emitStatus(window: Electron.BrowserWindow, payload: Pick<BootstrapPayload, 'directoryStatus' | 'watcherStatus' | 'apiStatus'>): void {
   window.webContents.send('status:update', payload)
 }
+
+export function emitPortraits(window: Electron.BrowserWindow, portraits: Record<string, string>): void {
+  window.webContents.send('portraits:update', portraits)
+}

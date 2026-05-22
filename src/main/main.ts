@@ -1,6 +1,6 @@
-import { app, BrowserWindow, Menu, nativeTheme, screen, shell, type MenuItemConstructorOptions } from 'electron'
+import { app, BrowserWindow, Menu, nativeTheme, protocol, screen, shell, type MenuItemConstructorOptions } from 'electron'
 import { mkdir, readFile } from 'node:fs/promises'
-import { dirname, join } from 'node:path'
+import { basename, dirname, join } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 
 import {
@@ -17,9 +17,10 @@ import {
   type MessagePageCursor,
   type SaveLlmProviderProfileInput
 } from '../shared/types'
-import { registerIpcRouter, emitChannels, emitMessages, emitStatus } from './ipc/ipcRouter'
+import { registerIpcRouter, emitChannels, emitMessages, emitPortraits, emitStatus } from './ipc/ipcRouter'
 import { ChannelRegistry } from './services/channelRegistry'
 import { CharacterRegistry } from './services/characterRegistry'
+import { CharacterPortraitService } from './services/characterPortraitService'
 import { ChatLogParser } from './services/chatLogParser'
 import { ChatLogScanner, parseChatLogFilename, type ScanIndex } from './services/chatLogScanner'
 import { ChatLogWatcher } from './services/chatLogWatcher'
@@ -55,6 +56,8 @@ class EveBabelApp {
     join(app.getPath('userData'), 'credentials.json')
   )
   private readonly messageRepository = new MessageRepository(MessageRepository.createDefaultFilePath(app.getPath('userData')))
+  private readonly portraitsDirectory = join(app.getPath('userData'), 'portraits')
+  private readonly portraitService = new CharacterPortraitService(this.messageRepository, this.portraitsDirectory)
   private readonly pathResolver = new EvePathResolver(app.getPath('documents'))
   private readonly scanner = new ChatLogScanner()
   private readonly parser = new ChatLogParser()
@@ -94,6 +97,8 @@ class EveBabelApp {
   }
 
   async initialize(): Promise<void> {
+    this.registerPortraitProtocol()
+
     const persistedConfig = await this.configStore.load()
     const llmConfig = await this.llmConfigStore.load()
     await this.windowStateStore.load()
@@ -187,7 +192,8 @@ class EveBabelApp {
       channels: this.channelRegistry.getChannels(selectedCharacterId),
       recentMessages: this.messageRepository.getRecentMessages(selectedCharacterId),
       watcherStatus: this.watcher.getStatus(),
-      apiStatus: this.translationQueue.getStatus()
+      apiStatus: this.translationQueue.getStatus(),
+      portraits: this.portraitService.getAllPortraits()
     }
   }
 
@@ -415,12 +421,22 @@ class EveBabelApp {
     const deduplicatedMessages = await this.messageRepository.upsertMessages(allMessages)
     this.publishMessages(deduplicatedMessages)
     await this.enqueueHistoryTranslationsForEnabledChannels(this.characterRegistry.getSelectedCharacterId())
+
+    const senderNames = [...new Set(deduplicatedMessages.filter((m) => m.messageType === 'chat').map((m) => m.senderName))]
+    void this.portraitService.resolvePortraits(senderNames, (portraits) => {
+      this.publishPortraits(portraits)
+    })
   }
 
   private async handleWatcherMessages(messages: ChatMessage[]): Promise<void> {
     const persistedMessages = await this.messageRepository.upsertMessages(messages)
     this.publishMessages(persistedMessages)
     await this.enqueueEligibleTranslations(persistedMessages)
+
+    const senderNames = [...new Set(persistedMessages.filter((m) => m.messageType === 'chat').map((m) => m.senderName))]
+    void this.portraitService.resolvePortraits(senderNames, (portraits) => {
+      this.publishPortraits(portraits)
+    })
   }
 
   private async hydrateSessionFromPath(filePath: string): Promise<ChatSessionFile | null> {
@@ -558,6 +574,31 @@ class EveBabelApp {
         apiStatus: this.translationQueue.getStatus()
       })
     }
+  }
+
+  private publishPortraits(portraits: Record<string, string>): void {
+    for (const window of this.getOpenWindows()) {
+      emitPortraits(window, portraits)
+    }
+  }
+
+  private registerPortraitProtocol(): void {
+    const portraitsDirectory = this.portraitsDirectory
+    protocol.handle('portrait', async (request) => {
+      try {
+        const fileName = basename(new URL(request.url).pathname)
+        const filePath = join(portraitsDirectory, fileName)
+        const data = await readFile(filePath)
+        return new Response(data, {
+          headers: {
+            'Content-Type': 'image/png',
+            'Cache-Control': 'max-age=604800'
+          }
+        })
+      } catch {
+        return new Response(null, { status: 404 })
+      }
+    })
   }
 
   private configureMenu(): void {

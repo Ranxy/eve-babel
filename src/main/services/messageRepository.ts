@@ -334,6 +334,13 @@ export class MessageRepository {
 
       CREATE INDEX IF NOT EXISTS idx_chat_messages_timestamp
       ON chat_messages (timestamp DESC);
+
+      CREATE TABLE IF NOT EXISTS character_portraits (
+        sender_name TEXT PRIMARY KEY,
+        character_id INTEGER,
+        portrait_url TEXT,
+        fetched_at TEXT NOT NULL
+      );
     `)
   }
 
@@ -506,5 +513,98 @@ export class MessageRepository {
 
   static createDefaultFilePath(userDataDirectory: string): string {
     return join(userDataDirectory, 'messages.sqlite')
+  }
+
+  getUnknownSenders(senderNames: string[]): string[] {
+    if (senderNames.length === 0) {
+      return []
+    }
+
+    const database = this.getDatabase()
+    const placeholders = senderNames.map((_, i) => `$name${i}`).join(', ')
+    const params = Object.fromEntries(senderNames.map((name, i) => [`$name${i}`, name]))
+    const statement = database.prepare(`SELECT sender_name FROM character_portraits WHERE sender_name IN (${placeholders})`)
+    statement.bind(params)
+
+    const known = new Set<string>()
+    while (statement.step()) {
+      const row = statement.getAsObject() as { sender_name: string }
+      known.add(row.sender_name)
+    }
+    statement.free()
+
+    return senderNames.filter((name) => !known.has(name))
+  }
+
+  getSendersNeedingPortraitRefresh(senderNames: string[], maxAgeMs: number): string[] {
+    if (senderNames.length === 0) {
+      return []
+    }
+
+    const database = this.getDatabase()
+    const cutoff = new Date(Date.now() - maxAgeMs).toISOString()
+    const placeholders = senderNames.map((_, i) => `$name${i}`).join(', ')
+    const params = Object.fromEntries(senderNames.map((name, i) => [`$name${i}`, name]))
+    const statement = database.prepare(
+      `SELECT sender_name FROM character_portraits WHERE sender_name IN (${placeholders}) AND fetched_at >= $cutoff`
+    )
+    statement.bind({ ...params, $cutoff: cutoff })
+
+    const fresh = new Set<string>()
+    while (statement.step()) {
+      const row = statement.getAsObject() as { sender_name: string }
+      fresh.add(row.sender_name)
+    }
+    statement.free()
+
+    return senderNames.filter((name) => !fresh.has(name))
+  }
+
+  async upsertPortraits(portraits: Array<{ senderName: string; characterId: number | null; portraitUrl: string | null }>): Promise<void> {
+    if (portraits.length === 0) {
+      return
+    }
+
+    const database = this.getDatabase()
+    const fetchedAt = new Date().toISOString()
+    const statement = database.prepare(`
+      INSERT INTO character_portraits (sender_name, character_id, portrait_url, fetched_at)
+      VALUES ($senderName, $characterId, $portraitUrl, $fetchedAt)
+      ON CONFLICT (sender_name) DO UPDATE SET
+        character_id = excluded.character_id,
+        portrait_url = excluded.portrait_url,
+        fetched_at = excluded.fetched_at
+    `)
+
+    database.exec('BEGIN TRANSACTION')
+    try {
+      for (const { senderName, characterId, portraitUrl } of portraits) {
+        statement.bind({ $senderName: senderName, $characterId: characterId, $portraitUrl: portraitUrl, $fetchedAt: fetchedAt })
+        statement.step()
+        statement.reset()
+      }
+      database.exec('COMMIT')
+    } catch (error) {
+      database.exec('ROLLBACK')
+      throw error
+    } finally {
+      statement.free()
+    }
+
+    await this.persist()
+  }
+
+  getAllPortraits(): Record<string, string> {
+    const database = this.getDatabase()
+    const statement = database.prepare(`SELECT sender_name, portrait_url FROM character_portraits WHERE portrait_url IS NOT NULL`)
+    const result: Record<string, string> = {}
+
+    while (statement.step()) {
+      const row = statement.getAsObject() as { sender_name: string; portrait_url: string }
+      result[row.sender_name] = row.portrait_url
+    }
+
+    statement.free()
+    return result
   }
 }
