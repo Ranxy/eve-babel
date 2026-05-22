@@ -2078,6 +2078,9 @@ h3 {
 }
 .providers-model-search {
   margin-bottom: 8px;
+  flex: 0 0 auto;
+  width: 220px;
+  min-height: 30px;
 }
 
 /* ── API key row ─────────────────────────────────────────────────────── */

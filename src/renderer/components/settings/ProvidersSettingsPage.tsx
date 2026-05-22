@@ -305,15 +305,17 @@ export function ProvidersSettingsPage(props: ProvidersSettingsPageProps) {
 
               {sortedModels.length > 0 && (
                 <>
-                  <label className="providers-search-field providers-model-search">
-                    <SearchIcon />
-                    <input
-                      placeholder="Search models…"
-                      type="search"
-                      value={modelSearchQuery}
-                      onChange={(e) => setModelSearchQuery(e.target.value)}
-                    />
-                  </label>
+                  {fetchedModels.length > 0 && (
+                    <label className="providers-search-field providers-model-search">
+                      <SearchIcon />
+                      <input
+                        placeholder="Search models…"
+                        type="search"
+                        value={modelSearchQuery}
+                        onChange={(e) => setModelSearchQuery(e.target.value)}
+                      />
+                    </label>
+                  )}
                   <div className="providers-model-count">
                     Showing {shownCount} model{shownCount !== 1 ? 's' : ''} · {enabledCount} enabled
                   </div>
