@@ -867,13 +867,40 @@ h3 {
   color: var(--bubble-translation-text);
 }
 
+.chat-bubble-translated {
+  background: var(--bubble-translation-surface);
+  color: var(--bubble-translation-text);
+  cursor: help;
+}
+
+.chat-bubble-translated .original-face {
+  display: none;
+}
+
+.chat-bubble-translated:hover .translation-face {
+  display: none;
+}
+
+.chat-bubble-translated:hover .original-face {
+  display: block;
+}
+
 .chat-message.self .chat-bubble-original {
   background: var(--bubble-self-original-surface);
   color: var(--bubble-self-original-text);
 }
 
+.chat-message.self .chat-bubble-translated {
+  background: var(--bubble-self-translation-surface);
+}
+
 .chat-message.self .chat-bubble-translation {
   background: var(--bubble-self-translation-surface);
+}
+
+.chat-message.system .chat-bubble-translated {
+  background: var(--bubble-system-surface);
+  text-align: center;
 }
 
 .chat-message.system .chat-bubble-original,

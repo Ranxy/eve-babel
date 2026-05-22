@@ -120,6 +120,9 @@ export function MessageFeed(props: MessageFeedProps) {
               const showTranslation = shouldShowTranslation(message)
               const showTranslationStatus = selectedChannel?.enabled === true && message.messageType === 'chat'
 
+              const hasTranslation = !!message.translatedText
+              const showSecondBubble = !hasTranslation && showTranslation
+
               return (
                 <article
                   className={`chat-message ${resolveMessageTone(message, props.selectedCharacterLabel)}`}
@@ -130,9 +133,16 @@ export function MessageFeed(props: MessageFeedProps) {
                     <span>{formatTime(message.timestamp)}</span>
                   </div>
                   <div className="chat-bubble-stack">
-                    <div className="chat-bubble chat-bubble-original">
+                    <div className={`chat-bubble ${hasTranslation ? 'chat-bubble-translated' : 'chat-bubble-original'}`}>
                       <div className="chat-bubble-body">
-                        <div className="chat-bubble-copy">{message.messageText}</div>
+                        {hasTranslation ? (
+                          <>
+                            <div className="chat-bubble-copy translation-face">{message.translatedText}</div>
+                            <div className="chat-bubble-copy original-face">{message.messageText}</div>
+                          </>
+                        ) : (
+                          <div className="chat-bubble-copy">{message.messageText}</div>
+                        )}
                         {showTranslationStatus ? (
                           <span
                             aria-label={resolveTranslationIndicatorLabel(message.translationStatus)}
@@ -142,7 +152,7 @@ export function MessageFeed(props: MessageFeedProps) {
                         ) : null}
                       </div>
                     </div>
-                    {showTranslation ? (
+                    {showSecondBubble ? (
                       <div className="chat-bubble chat-bubble-translation">
                         <span className="chat-section-label">Translation</span>
                         {resolveTranslationCopy(message)}
