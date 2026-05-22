@@ -61,7 +61,7 @@ export function GeneralSettingsPage(props: GeneralSettingsPageProps) {
             ) : (
               props.llmProviderState.profiles.map((profile) => (
                 <option key={profile.profileId} value={profile.profileId}>
-                  {profile.providerId} / {profile.modelName}
+                  {profile.customLabel ?? profile.providerId} / {profile.modelName}
                 </option>
               ))
             )}

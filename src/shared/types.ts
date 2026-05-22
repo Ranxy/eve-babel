@@ -19,7 +19,7 @@ export const DEFAULT_TARGET_LANGUAGE: TargetLanguage = 'zh-CN'
 export const DEFAULT_TRANSLATION_PROMPT =
   'Translate incoming EVE Online chat messages into {{targetLanguage}}. Preserve EVE-specific terms where appropriate. Return translation only.'
 
-export const SUPPORTED_LLM_PROVIDER_IDS = ['openai', 'deepseek', 'openrouter'] as const
+export const SUPPORTED_LLM_PROVIDER_IDS = ['openai', 'deepseek', 'openrouter', 'custom'] as const
 
 export type LlmProviderId = (typeof SUPPORTED_LLM_PROVIDER_IDS)[number]
 
@@ -119,6 +119,7 @@ export interface LlmProviderProfile {
   providerId: LlmProviderId
   apiBaseUrl: string
   modelName: string
+  customLabel: string | null
   hasApiKey: boolean
   createdAt: string
   updatedAt: string
@@ -191,6 +192,8 @@ export interface SaveLlmProviderProfileInput {
   modelName: string
   apiKey?: string
   copyApiKeyFromProfileId?: string
+  customLabel?: string
+  apiBaseUrl?: string
 }
 
 export interface FetchLlmProviderModelsInput {

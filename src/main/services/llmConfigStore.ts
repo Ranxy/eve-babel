@@ -27,6 +27,7 @@ type ProviderProfileRow = {
   provider_id: string
   api_base_url: string
   model_name: string
+  custom_label: string | null
   encrypted_api_key: string | null
   is_active: number
   is_selected: number
@@ -87,6 +88,7 @@ export class LlmConfigStore {
 
     this.initializeSchema()
     this.migrateIsSelectedColumnIfNeeded()
+    this.migrateCustomLabelColumnIfNeeded()
     await this.migrateLegacySqliteRowIfNeeded()
     await this.migrateLegacyFilesIfNeeded()
     await this.persist()
@@ -100,6 +102,7 @@ export class LlmConfigStore {
       providerId: row.provider_id as LlmProviderId,
       apiBaseUrl: row.api_base_url,
       modelName: row.model_name,
+      customLabel: row.custom_label ?? null,
       hasApiKey: Boolean(row.encrypted_api_key),
       createdAt: row.created_at,
       updatedAt: row.updated_at,
@@ -186,6 +189,9 @@ export class LlmConfigStore {
     const profileId = current?.profile_id ?? randomUUID()
     const isSelected = shouldAutoSelect ? 1 : (current?.is_selected ?? 0)
 
+    const resolvedApiBaseUrl = input.apiBaseUrl?.trim() || current?.api_base_url || providerDefinition.defaultApiBaseUrl
+    const resolvedCustomLabel = typeof input.customLabel === 'string' ? input.customLabel.trim() || null : (current?.custom_label ?? null)
+
     database.run(
       `
         INSERT INTO llm_provider_profiles (
@@ -193,6 +199,7 @@ export class LlmConfigStore {
           provider_id,
           api_base_url,
           model_name,
+          custom_label,
           encrypted_api_key,
           is_active,
           is_selected,
@@ -204,6 +211,7 @@ export class LlmConfigStore {
           $providerId,
           $apiBaseUrl,
           $modelName,
+          $customLabel,
           $encryptedApiKey,
           1,
           $isSelected,
@@ -214,6 +222,7 @@ export class LlmConfigStore {
           provider_id = excluded.provider_id,
           api_base_url = excluded.api_base_url,
           model_name = excluded.model_name,
+          custom_label = excluded.custom_label,
           encrypted_api_key = excluded.encrypted_api_key,
           is_active = 1,
           is_selected = excluded.is_selected,
@@ -222,8 +231,9 @@ export class LlmConfigStore {
       {
         $profileId: profileId,
         $providerId: input.providerId,
-        $apiBaseUrl: current?.api_base_url ?? providerDefinition.defaultApiBaseUrl,
+        $apiBaseUrl: resolvedApiBaseUrl,
         $modelName: modelName,
+        $customLabel: resolvedCustomLabel,
         $encryptedApiKey: encryptedApiKey,
         $isSelected: isSelected,
         $createdAt: current?.created_at ?? now,
@@ -292,6 +302,7 @@ export class LlmConfigStore {
         provider_id TEXT NOT NULL,
         api_base_url TEXT NOT NULL,
         model_name TEXT NOT NULL,
+        custom_label TEXT,
         encrypted_api_key TEXT,
         is_active INTEGER NOT NULL DEFAULT 0,
         is_selected INTEGER NOT NULL DEFAULT 0,
@@ -319,11 +330,20 @@ export class LlmConfigStore {
     }
   }
 
+  private migrateCustomLabelColumnIfNeeded(): void {
+    const database = this.getDatabase()
+    try {
+      database.exec('ALTER TABLE llm_provider_profiles ADD COLUMN custom_label TEXT')
+    } catch {
+      // Column already exists — nothing to do
+    }
+  }
+
   private getProfileRows(): ProviderProfileRow[] {
     const database = this.getDatabase()
     const statement = database.prepare(
       `
-        SELECT profile_id, provider_id, api_base_url, model_name, encrypted_api_key, is_active, is_selected, created_at, updated_at
+        SELECT profile_id, provider_id, api_base_url, model_name, custom_label, encrypted_api_key, is_active, is_selected, created_at, updated_at
         FROM llm_provider_profiles
         ORDER BY is_selected DESC, is_active DESC, updated_at DESC, created_at DESC
       `
@@ -342,7 +362,7 @@ export class LlmConfigStore {
     const database = this.getDatabase()
     const statement = database.prepare(
       `
-        SELECT profile_id, provider_id, api_base_url, model_name, encrypted_api_key, is_active, is_selected, created_at, updated_at
+        SELECT profile_id, provider_id, api_base_url, model_name, custom_label, encrypted_api_key, is_active, is_selected, created_at, updated_at
         FROM llm_provider_profiles
         WHERE profile_id = $profileId
       `
@@ -357,7 +377,7 @@ export class LlmConfigStore {
     const database = this.getDatabase()
     const statement = database.prepare(
       `
-        SELECT profile_id, provider_id, api_base_url, model_name, encrypted_api_key, is_active, is_selected, created_at, updated_at
+        SELECT profile_id, provider_id, api_base_url, model_name, custom_label, encrypted_api_key, is_active, is_selected, created_at, updated_at
         FROM llm_provider_profiles
         WHERE is_selected = 1
         ORDER BY updated_at DESC
