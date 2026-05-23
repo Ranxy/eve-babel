@@ -1,6 +1,9 @@
 node_modules
 spec
 .vscode
-.github
+.github/*
+!.github/workflows/
+!.github/workflows/**
 AGENTS.md
 out
+dist

@@ -1,7 +1,7 @@
 import { app, BrowserWindow, Menu, nativeTheme, protocol, screen, shell, type MenuItemConstructorOptions } from 'electron'
 import { mkdir, readFile } from 'node:fs/promises'
 import { basename, dirname, join } from 'node:path'
-import { fileURLToPath, pathToFileURL } from 'node:url'
+import { fileURLToPath } from 'node:url'
 
 import {
   DEFAULT_TARGET_LANGUAGE,
@@ -792,15 +792,15 @@ class EveBabelApp {
   }
 
   private async loadRendererView(targetWindow: BrowserWindow, view: 'main' | 'settings'): Promise<void> {
-    const search = view === 'settings' ? '?view=settings' : ''
-
     if (process.env.ELECTRON_RENDERER_URL) {
+      const search = view === 'settings' ? '?view=settings' : ''
       await targetWindow.loadURL(`${process.env.ELECTRON_RENDERER_URL}${search}`)
       return
     }
 
-    const rendererUrl = `${pathToFileURL(join(currentDirectory, '../renderer/index.html')).toString()}${search}`
-    await targetWindow.loadURL(rendererUrl)
+    await targetWindow.loadFile(join(app.getAppPath(), 'out', 'renderer', 'index.html'), {
+      query: view === 'settings' ? { view: 'settings' } : undefined
+    })
   }
 }
 

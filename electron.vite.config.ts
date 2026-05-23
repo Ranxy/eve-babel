@@ -38,7 +38,7 @@ export default defineConfig({
   },
   renderer: {
     build: {
-      outDir: '../../out/renderer'
+      outDir: 'out/renderer'
     },
     root: 'src/renderer',
     resolve: {
