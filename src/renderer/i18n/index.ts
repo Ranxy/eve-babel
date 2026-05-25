@@ -2,17 +2,25 @@ import i18next from 'i18next'
 import { initReactI18next } from 'react-i18next'
 
 import en from './locales/en'
+import ja from './locales/ja'
+import ru from './locales/ru'
 import zhCN from './locales/zh-CN'
 
 /** All supported UI locales. Order determines display order in the switcher. */
 export const SUPPORTED_LOCALES = [
   { code: 'en', nativeLabel: 'English' },
+  { code: 'ja', nativeLabel: '日本語' },
+  { code: 'ru', nativeLabel: 'Русский' },
   { code: 'zh-CN', nativeLabel: '简体中文' },
 ] as const
 
 export type SupportedLocaleCode = (typeof SUPPORTED_LOCALES)[number]['code']
 
 const LOCALE_STORAGE_KEY = 'eve-babel:locale'
+
+function syncDocumentLanguage(code: SupportedLocaleCode): void {
+  document.documentElement.lang = code
+}
 
 /**
  * Resolve the initial UI locale:
@@ -47,6 +55,7 @@ function detectInitialLocale(): SupportedLocaleCode {
 export function changeLocale(code: SupportedLocaleCode): void {
   void i18next.changeLanguage(code)
   localStorage.setItem(LOCALE_STORAGE_KEY, code)
+  syncDocumentLanguage(code)
 }
 
 /**
@@ -63,6 +72,8 @@ void i18next.use(initReactI18next).init({
   fallbackLng: 'en',
   resources: {
     en: { translation: en },
+    ja: { translation: ja },
+    ru: { translation: ru },
     'zh-CN': { translation: zhCN },
   },
   interpolation: {
@@ -72,5 +83,7 @@ void i18next.use(initReactI18next).init({
   },
   saveMissing: false,
 })
+
+syncDocumentLanguage((i18next.resolvedLanguage ?? i18next.language) as SupportedLocaleCode)
 
 export default i18next
