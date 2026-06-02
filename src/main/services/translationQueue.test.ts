@@ -15,7 +15,8 @@ const baseConfig: AppConfig = {
   apiBaseUrl: 'https://example.com/v1',
   modelName: 'test-model',
   debounceMs: 20,
-  maxQueueSize: 100
+  maxQueueSize: 100,
+  glossary: []
 }
 
 function createMessage(messageId: string, channelName: string): ChatMessage {

@@ -132,6 +132,12 @@ export interface LlmProviderState {
   activeProfileId: string | null
 }
 
+export interface GlossaryEntry {
+  id: string
+  notes?: string
+  terms: Record<string, string[]>
+}
+
 export interface AppConfig {
   logDirectory: string | null
   selectedCharacterId: string | null
@@ -145,6 +151,7 @@ export interface AppConfig {
   modelName: string
   debounceMs: number
   maxQueueSize: number
+  glossary: GlossaryEntry[]
 }
 
 export interface DirectoryStatus {
@@ -228,6 +235,9 @@ export interface EveBabelApi {
   setActiveLlmProviderProfile: (profileId: string) => Promise<BootstrapPayload>
   fetchLlmProviderModels: (input: FetchLlmProviderModelsInput) => Promise<LlmProviderModel[]>
   getApiKeyForProfile: (profileId: string) => Promise<string | null>
+  addGlossaryEntry: (entry: { notes?: string; terms: Record<string, string[]> }) => Promise<BootstrapPayload>
+  updateGlossaryEntry: (entry: GlossaryEntry) => Promise<BootstrapPayload>
+  deleteGlossaryEntry: (id: string) => Promise<BootstrapPayload>
   onMessagesUpsert: (listener: (messages: ChatMessage[]) => void) => () => void
   onChannelsUpdate: (listener: (channels: ChannelSummary[]) => void) => () => void
   onStatusUpdate: (

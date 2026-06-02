@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto'
 import { app, BrowserWindow, Menu, nativeTheme, protocol, screen, shell, type MenuItemConstructorOptions } from 'electron'
 import { mkdir, readFile } from 'node:fs/promises'
 import { basename, dirname, join } from 'node:path'
@@ -14,6 +15,7 @@ import {
   type ChannelSummary,
   type ChatSessionFile,
   type FetchLlmProviderModelsInput,
+  type GlossaryEntry,
   type MessagePageCursor,
   type SaveLlmProviderProfileInput
 } from '../shared/types'
@@ -93,7 +95,8 @@ class EveBabelApp {
     apiBaseUrl: '',
     modelName: '',
     debounceMs: 350,
-    maxQueueSize: 100
+    maxQueueSize: 100,
+    glossary: []
   }
 
   async initialize(): Promise<void> {
@@ -391,6 +394,45 @@ class EveBabelApp {
 
   async getApiKeyForProfile(profileId: string): Promise<string | null> {
     return this.llmConfigStore.getApiKeyForProfile(profileId)
+  }
+
+  async addGlossaryEntry(entry: { notes?: string; terms: Record<string, string[]> }): Promise<BootstrapPayload> {
+    const nextGlossary = [...this.config.glossary]
+    const nextEntry: GlossaryEntry = {
+      id: randomUUID(),
+      notes: entry.notes?.trim() || undefined,
+      terms: Object.fromEntries(
+        Object.entries(entry.terms)
+          .map(([lang, values]) => [lang, Array.isArray(values) ? values.filter((v) => v.trim().length > 0).map((v) => v.trim()) : []])
+          .filter(([, values]) => (values as string[]).length > 0)
+      )
+    }
+    nextGlossary.push(nextEntry)
+
+    this.config = this.mergeAppConfig(await this.configStore.update({ glossary: nextGlossary }))
+    return this.getBootstrapData()
+  }
+
+  async updateGlossaryEntry(entry: GlossaryEntry): Promise<BootstrapPayload> {
+    const trimmedTerms = Object.fromEntries(
+      Object.entries(entry.terms)
+        .map(([lang, values]) => [lang, Array.isArray(values) ? values.filter((v) => v.trim().length > 0).map((v) => v.trim()) : []])
+        .filter(([, values]) => (values as string[]).length > 0)
+    )
+    const nextGlossary = this.config.glossary.map((existing) =>
+      existing.id === entry.id
+        ? { ...entry, notes: entry.notes?.trim() || undefined, terms: trimmedTerms }
+        : existing
+    )
+
+    this.config = this.mergeAppConfig(await this.configStore.update({ glossary: nextGlossary }))
+    return this.getBootstrapData()
+  }
+
+  async deleteGlossaryEntry(id: string): Promise<BootstrapPayload> {
+    const nextGlossary = this.config.glossary.filter((entry) => entry.id !== id)
+    this.config = this.mergeAppConfig(await this.configStore.update({ glossary: nextGlossary }))
+    return this.getBootstrapData()
   }
 
   private async startCharacterSession(characterId: string): Promise<void> {
@@ -836,7 +878,10 @@ if (hasSingleInstanceLock) {
       deleteLlmProviderProfile: (profileId) => eveBabelApp.deleteLlmProviderProfile(profileId),
       setActiveLlmProviderProfile: (profileId) => eveBabelApp.setActiveLlmProviderProfile(profileId),
       fetchLlmProviderModels: (input) => eveBabelApp.fetchLlmProviderModels(input),
-      getApiKeyForProfile: (profileId) => eveBabelApp.getApiKeyForProfile(profileId)
+      getApiKeyForProfile: (profileId) => eveBabelApp.getApiKeyForProfile(profileId),
+      addGlossaryEntry: (entry) => eveBabelApp.addGlossaryEntry(entry),
+      updateGlossaryEntry: (entry) => eveBabelApp.updateGlossaryEntry(entry),
+      deleteGlossaryEntry: (id) => eveBabelApp.deleteGlossaryEntry(id)
     })
     nativeTheme.on('updated', () => {
       eveBabelApp.refreshNativeTheme()

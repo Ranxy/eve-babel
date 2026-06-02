@@ -1,7 +1,7 @@
 import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
 
-import { DEFAULT_TARGET_LANGUAGE, DEFAULT_TRANSLATION_PROMPT, isTargetLanguage, type AppConfig } from '../../shared/types'
+import { DEFAULT_TARGET_LANGUAGE, DEFAULT_TRANSLATION_PROMPT, isTargetLanguage, type AppConfig, type GlossaryEntry } from '../../shared/types'
 
 const DEFAULT_CONFIG: AppConfig = {
   logDirectory: null,
@@ -15,7 +15,8 @@ const DEFAULT_CONFIG: AppConfig = {
   apiBaseUrl: '',
   modelName: '',
   debounceMs: 350,
-  maxQueueSize: 100
+  maxQueueSize: 100,
+  glossary: []
 }
 
 function sanitizeConfig(input: Partial<AppConfig>): AppConfig {
@@ -33,7 +34,8 @@ function sanitizeConfig(input: Partial<AppConfig>): AppConfig {
         ? input.translationPrompt.trim()
         : DEFAULT_CONFIG.translationPrompt,
     debounceMs: typeof input.debounceMs === 'number' ? input.debounceMs : DEFAULT_CONFIG.debounceMs,
-    maxQueueSize: typeof input.maxQueueSize === 'number' ? input.maxQueueSize : DEFAULT_CONFIG.maxQueueSize
+    maxQueueSize: typeof input.maxQueueSize === 'number' ? input.maxQueueSize : DEFAULT_CONFIG.maxQueueSize,
+    glossary: sanitizeGlossary(input.glossary)
   }
 }
 
@@ -52,6 +54,60 @@ function sanitizeChannelMap(input: unknown): Record<string, string[]> {
         : []
     ])
   )
+}
+
+function sanitizeGlossary(input: unknown): GlossaryEntry[] {
+  if (!Array.isArray(input)) {
+    return []
+  }
+
+  return input
+    .filter(
+      (entry): entry is GlossaryEntry =>
+        typeof entry === 'object' &&
+        entry !== null &&
+        typeof (entry as GlossaryEntry).id === 'string' &&
+        (entry as GlossaryEntry).id.trim().length > 0 &&
+        typeof (entry as GlossaryEntry).terms === 'object' &&
+        (entry as GlossaryEntry).terms !== null
+    )
+    .map((entry) => ({
+      id: entry.id.trim(),
+      notes: typeof entry.notes === 'string' ? entry.notes.trim() || undefined : undefined,
+      terms: sanitizeTermsMap(entry.terms)
+    }))
+    .filter((entry) => Object.keys(entry.terms).length > 0)
+}
+
+function sanitizeTermsMap(input: unknown): Record<string, string[]> {
+  if (!input || typeof input !== 'object') {
+    return {}
+  }
+
+  return Object.fromEntries(
+    Object.entries(input)
+      .filter((entry): entry is [string, unknown] => typeof entry[0] === 'string' && entry[0].trim().length > 0)
+      .map(([lang, values]) => {
+        const variants = sanitizeTermVariants(values)
+        return [lang, variants] as [string, string[]]
+      })
+      .filter(([, variants]) => variants.length > 0)
+  )
+}
+
+function sanitizeTermVariants(input: unknown): string[] {
+  if (Array.isArray(input)) {
+    return input
+      .filter((v): v is string => typeof v === 'string')
+      .map((v) => v.trim())
+      .filter((v) => v.length > 0)
+  }
+
+  if (typeof input === 'string' && input.trim().length > 0) {
+    return [input.trim()]
+  }
+
+  return []
 }
 
 export class ConfigStore {

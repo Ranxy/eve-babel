@@ -1,6 +1,6 @@
 import { contextBridge, ipcRenderer } from 'electron'
 
-import type { AppSettingsUpdate, ChatMessage, ChannelSummary, EveBabelApi, MessagePageCursor } from '../shared/types'
+import type { AppSettingsUpdate, ChatMessage, ChannelSummary, EveBabelApi, GlossaryEntry, MessagePageCursor } from '../shared/types'
 
 const api: EveBabelApi = {
   getBootstrapData: () => ipcRenderer.invoke('app:getBootstrapData'),
@@ -26,6 +26,11 @@ const api: EveBabelApi = {
   setActiveLlmProviderProfile: (profileId: string) => ipcRenderer.invoke('app:setActiveLlmProviderProfile', profileId),
   fetchLlmProviderModels: (input) => ipcRenderer.invoke('app:fetchLlmProviderModels', input),
   getApiKeyForProfile: (profileId: string) => ipcRenderer.invoke('app:getApiKeyForProfile', profileId),
+  addGlossaryEntry: (entry: { notes?: string; terms: Record<string, string[]> }) => {
+    return ipcRenderer.invoke('app:addGlossaryEntry', entry)
+  },
+  updateGlossaryEntry: (entry: GlossaryEntry) => ipcRenderer.invoke('app:updateGlossaryEntry', entry),
+  deleteGlossaryEntry: (id: string) => ipcRenderer.invoke('app:deleteGlossaryEntry', id),
   onMessagesUpsert: (listener: (messages: ChatMessage[]) => void) => {
     const subscription = (_event: Electron.IpcRendererEvent, messages: ChatMessage[]) => listener(messages)
     ipcRenderer.on('messages:upsert', subscription)

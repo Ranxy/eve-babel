@@ -107,6 +107,7 @@ const ja = {
     sections: {
       general: '一般',
       providers: 'プロバイダー',
+      terminology: '用語集',
     },
     footer: {
       allSaved: 'すべての変更を保存しました',
@@ -222,6 +223,44 @@ const ja = {
       fetchHintNoKey: 'API キーを入力して「モデルを取得」をクリックすると、利用可能なモデルを表示します。',
       fetchHintHasKey: '「モデルを取得」をクリックして利用可能なモデルを読み込みます。',
       failedToFetch: 'モデルの取得に失敗しました',
+    },
+  },
+
+  // ── 用語集設定ページ ──────────────────────────────────────────────────
+  terminologySettings: {
+    summary: {
+      label: '用語集',
+      count_one: '[[count]] 用語',
+      count_other: '[[count]] 用語',
+      hint: 'アクティブな目標言語での翻訳が定義されている場合、その用語が LLM プロンプトに注入されます。',
+    },
+    activeLanguage: {
+      label: '現在の目標言語',
+      hint: 'この言語の翻訳が定義されている用語のみが使用されます。',
+    },
+    searchPlaceholder: '用語を検索...',
+    emptyState: 'まだ用語が定義されていません。ゲーム固有の用語とその翻訳を追加して、LLM が EVE チャットメッセージを正確に翻訳できるようにします。',
+    termsLabel: '用語',
+    actions: {
+      addTerm: '用語を追加',
+      addFirst: '最初の用語を追加',
+      delete: '削除',
+    },
+    editor: {
+      newTitle: '新規用語',
+      editTitle: '用語を編集',
+      description: '同じゲーム用語を1つ以上の言語で定義します。どの言語もソースとして扱われず、すべて対等です。',
+      notesLabel: '備考（任意）',
+      notesPlaceholder: '例: Cynosural Field — キャピタルシップのジャンプ誘導に使用',
+      termsLabel: '言語',
+      addLanguage: '+ 言語を追加',
+      noLanguages: 'まだ言語が追加されていません。「+ 言語を追加」をクリックして、少なくとも1つの言語バリアントを定義してください。',
+      termPlaceholder: '例: cyno, POS, 诱导力场...',
+      multiValueHint: '複数のバリアントはカンマで区切ってください（例: "cyno, cynosural, cyno field"）。',
+      removeLanguage: '言語を削除',
+      cancel: 'キャンセル',
+      addEntry: 'エントリを追加',
+      saveEntry: 'エントリを保存',
     },
   },
 } satisfies LocaleSchema

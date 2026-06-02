@@ -176,13 +176,65 @@ function buildBatchTranslationPrompt(config: AppConfig): string {
     ? template.replace(/\{\{\s*targetLanguage\s*\}\}/gu, config.targetLanguage)
     : `${template}\n\nTarget language: ${config.targetLanguage}`
 
-  return [
+  const baseSegments = [
     resolvedTemplate,
     'You will receive a JSON object with a messages array.',
     'Translate each messageText into the target language while preserving names and EVE-specific terms where appropriate.',
     'Return JSON only with this exact shape: {"translations":[{"messageId":"...","translatedText":"..."}]}.',
     'Include every input messageId exactly once and do not add extra fields.'
-  ].join('\n\n')
+  ]
+
+  const glossarySegment = buildGlossaryPromptSegment(config.glossary ?? [], config.targetLanguage)
+  if (glossarySegment) {
+    baseSegments.push(glossarySegment)
+  }
+
+  return baseSegments.join('\n\n')
+}
+
+function buildGlossaryPromptSegment(glossary: Array<{ terms: Record<string, string[]>; notes?: string }>, targetLanguage: string): string | null {
+  const relevantEntries = glossary
+    .filter((entry) => {
+      const targets = entry.terms[targetLanguage]
+      return Array.isArray(targets) && targets.some((v) => v.trim().length > 0)
+    })
+
+  if (relevantEntries.length === 0) {
+    return null
+  }
+
+  const lines: string[] = [
+    `## Game Terminology Glossary (target: ${targetLanguage})`,
+    'Each group below represents the same EVE term expressed in different languages. Multiple variants per language are separated by commas.',
+    'When translating chat messages into the target language, always use one of the target-language forms shown for these terms.',
+    ''
+  ]
+
+  for (const entry of relevantEntries) {
+    const langs = Object.keys(entry.terms).sort((a, b) => {
+      if (a === targetLanguage) return 1
+      if (b === targetLanguage) return -1
+      return a.localeCompare(b)
+    })
+
+    const termLines = langs.map((lang) => {
+      const variants = (entry.terms[lang] ?? []).filter((v) => v.trim().length > 0)
+      if (variants.length === 0) return null
+      const marker = lang === targetLanguage ? '→' : ' '
+      return `  ${marker} ${lang}: ${variants.join(', ')}`
+    }).filter((line): line is string => line !== null)
+
+    if (termLines.length === 0) continue
+
+    const note = entry.notes?.trim()
+    if (note) {
+      lines.push(`**${note}**`)
+    }
+    lines.push(...termLines)
+    lines.push('')
+  }
+
+  return lines.join('\n')
 }
 
 function normalizeMessageContent(content: string | Array<{ type?: string; text?: string }> | undefined): string {

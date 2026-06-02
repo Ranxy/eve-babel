@@ -9,6 +9,7 @@ import {
   type ChatMessage,
   type ChannelSummary,
   type FetchLlmProviderModelsInput,
+  type GlossaryEntry,
   type SaveLlmProviderProfileInput
 } from '../../shared/types'
 
@@ -46,7 +47,8 @@ const emptyState: AppStoreState = {
     apiBaseUrl: '',
     modelName: '',
     debounceMs: 350,
-    maxQueueSize: 100
+    maxQueueSize: 100,
+    glossary: []
   },
   llmProviderState: {
     providers: [],
@@ -325,6 +327,9 @@ export function useAppStore() {
       deleteLlmProviderProfile: (profileId: string) => runAction(window.eveBabel.deleteLlmProviderProfile(profileId)),
       setActiveLlmProviderProfile: (profileId: string) => runAction(window.eveBabel.setActiveLlmProviderProfile(profileId)),
       fetchLlmProviderModels: (input: FetchLlmProviderModelsInput) => window.eveBabel.fetchLlmProviderModels(input),
+      addGlossaryEntry: (entry: { notes?: string; terms: Record<string, string[]> }) => runAction(window.eveBabel.addGlossaryEntry(entry)),
+      updateGlossaryEntry: (entry: GlossaryEntry) => runAction(window.eveBabel.updateGlossaryEntry(entry)),
+      deleteGlossaryEntry: (id: string) => runAction(window.eveBabel.deleteGlossaryEntry(id)),
       loadChannelMessages,
       loadOlderChannelMessages
     }

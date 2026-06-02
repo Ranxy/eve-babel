@@ -107,6 +107,7 @@ const zhCN: LocaleSchema = {
     sections: {
       general: '通用',
       providers: '服务商',
+      terminology: '术语表',
     },
     footer: {
       allSaved: '所有更改已保存',
@@ -223,6 +224,44 @@ const zhCN: LocaleSchema = {
       fetchHintNoKey: '请输入 API 密钥后点击\u201c获取模型列表\u201d以查看可用模型。',
       fetchHintHasKey: '点击\u201c获取模型列表\u201d以加载可用模型。',
       failedToFetch: '获取模型列表失败',
+    },
+  },
+
+  // ── 术语表设置页 ──────────────────────────────────────────────────────
+  terminologySettings: {
+    summary: {
+      label: '术语表',
+      count_one: '[[count]] 个术语',
+      count_other: '[[count]] 个术语',
+      hint: '当某个术语在激活的目标语言下有定义时，该术语会被注入到 LLM 提示词中。',
+    },
+    activeLanguage: {
+      label: '当前目标语言',
+      hint: '只有已定义了该语言翻译的术语才会被使用。',
+    },
+    searchPlaceholder: '搜索术语...',
+    emptyState: '尚未定义任何术语条目。添加游戏专属术语及翻译，以帮助 LLM 准确翻译 EVE 聊天消息。',
+    termsLabel: '术语',
+    actions: {
+      addTerm: '添加术语',
+      addFirst: '添加第一个术语',
+      delete: '删除',
+    },
+    editor: {
+      newTitle: '新增术语',
+      editTitle: '编辑术语',
+      description: '定义同一游戏术语在一种或多种语言下的表达。不区分源语言与目标语言——所有语言地位均等。',
+      notesLabel: '备注（可选）',
+      notesPlaceholder: '例如: Cynosural Field — 用于旗舰跳跃导航',
+      termsLabel: '语言',
+      addLanguage: '+ 添加语言',
+      noLanguages: '尚未添加任何语言。点击"+ 添加语言"以定义至少一种语言变体。',
+      termPlaceholder: '例如: cyno, POS, 诱导力场...',
+      multiValueHint: '多个变体请用逗号分隔，例如"cyno, cynosural, cyno field"。',
+      removeLanguage: '移除语言',
+      cancel: '取消',
+      addEntry: '添加条目',
+      saveEntry: '保存条目',
     },
   },
 } satisfies LocaleSchema

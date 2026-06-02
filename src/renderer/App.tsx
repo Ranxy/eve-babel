@@ -126,6 +126,9 @@ export function App() {
             onDeleteLlmProviderProfile={actions.deleteLlmProviderProfile}
             onSaveSettings={actions.updateSettings}
             onSetActiveLlmProviderProfile={actions.setActiveLlmProviderProfile}
+            onAddGlossaryEntry={actions.addGlossaryEntry}
+            onUpdateGlossaryEntry={actions.updateGlossaryEntry}
+            onDeleteGlossaryEntry={actions.deleteGlossaryEntry}
           />
         </main>
       </div>

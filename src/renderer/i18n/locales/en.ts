@@ -109,6 +109,7 @@ const en = {
     sections: {
       general: 'General',
       providers: 'Providers',
+      terminology: 'Terminology',
     },
     footer: {
       allSaved: 'All changes saved',
@@ -229,6 +230,44 @@ const en = {
       fetchHintNoKey: 'Enter an API key and click \u201cFetch models\u201d to see available models.',
       fetchHintHasKey: 'Click \u201cFetch models\u201d to load available models.',
       failedToFetch: 'Failed to fetch models',
+    },
+  },
+
+  // ── TerminologySettingsPage ────────────────────────────────────────────
+  terminologySettings: {
+    summary: {
+      label: 'Glossary',
+      count_one: '[[count]] term',
+      count_other: '[[count]] terms',
+      hint: 'Terms are injected into the LLM prompt when a translation exists for the active target language.',
+    },
+    activeLanguage: {
+      label: 'Active target language',
+      hint: 'Only terms with a translation defined for this language are used.',
+    },
+    searchPlaceholder: 'Search terms...',
+    emptyState: 'No terminology entries defined yet. Add game-specific terms with their translations to help the LLM translate EVE chat messages accurately.',
+    termsLabel: 'Terms',
+    actions: {
+      addTerm: 'Add term',
+      addFirst: 'Add first term',
+      delete: 'Delete',
+    },
+    editor: {
+      newTitle: 'New Term',
+      editTitle: 'Edit Term',
+      description: 'Define the same game term expressed in one or more languages. No single language is treated as the source — all are equal peers.',
+      notesLabel: 'Notes (optional)',
+      notesPlaceholder: 'e.g. Cynosural Field — used for capital ship jump guidance',
+      termsLabel: 'Languages',
+      addLanguage: '+ Add language',
+      noLanguages: 'No languages added yet. Click "+ Add language" to define at least one language variant.',
+      termPlaceholder: 'e.g. cyno, POS, 诱导力场...',
+      multiValueHint: 'Separate multiple variants with commas, e.g. "cyno, cynosural, cyno field".',
+      removeLanguage: 'Remove language',
+      cancel: 'Cancel',
+      addEntry: 'Add Entry',
+      saveEntry: 'Save Entry',
     },
   },
 } as const

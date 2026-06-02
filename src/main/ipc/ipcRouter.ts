@@ -7,6 +7,7 @@ import type {
   ChatMessage,
   ChannelSummary,
   FetchLlmProviderModelsInput,
+  GlossaryEntry,
   LlmProviderModel,
   MessagePageCursor,
   SaveLlmProviderProfileInput
@@ -29,6 +30,9 @@ export interface IpcController {
   setActiveLlmProviderProfile: (profileId: string) => Promise<BootstrapPayload>
   fetchLlmProviderModels: (input: FetchLlmProviderModelsInput) => Promise<LlmProviderModel[]>
   getApiKeyForProfile: (profileId: string) => Promise<string | null>
+  addGlossaryEntry: (entry: { notes?: string; terms: Record<string, string[]> }) => Promise<BootstrapPayload>
+  updateGlossaryEntry: (entry: GlossaryEntry) => Promise<BootstrapPayload>
+  deleteGlossaryEntry: (id: string) => Promise<BootstrapPayload>
 }
 
 export function registerIpcRouter(controller: IpcController): void {
@@ -63,6 +67,15 @@ export function registerIpcRouter(controller: IpcController): void {
   })
   ipcMain.handle('app:getApiKeyForProfile', (_event, profileId: string) => {
     return controller.getApiKeyForProfile(profileId)
+  })
+  ipcMain.handle('app:addGlossaryEntry', (_event, entry: { notes?: string; terms: Record<string, string[]> }) => {
+    return controller.addGlossaryEntry(entry)
+  })
+  ipcMain.handle('app:updateGlossaryEntry', (_event, entry: GlossaryEntry) => {
+    return controller.updateGlossaryEntry(entry)
+  })
+  ipcMain.handle('app:deleteGlossaryEntry', (_event, id: string) => {
+    return controller.deleteGlossaryEntry(id)
   })
   ipcMain.handle('app:chooseLogDirectory', async () => {
     const result = await dialog.showOpenDialog({
