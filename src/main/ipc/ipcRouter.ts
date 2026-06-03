@@ -35,7 +35,7 @@ export interface IpcController {
   deleteGlossaryEntry: (id: string) => Promise<BootstrapPayload>
   openOverlayWindow: (channelName: string) => Promise<void>
   closeOverlayWindow: () => Promise<void>
-  setOverlayPenetration: (enabled: boolean) => Promise<void>
+  resizeOverlayBody: (deltaY: number) => Promise<void>
 }
 
 export function registerIpcRouter(controller: IpcController): void {
@@ -86,8 +86,8 @@ export function registerIpcRouter(controller: IpcController): void {
   ipcMain.handle('app:closeOverlayWindow', () => {
     return controller.closeOverlayWindow()
   })
-  ipcMain.handle('app:setOverlayPenetration', (_event, enabled: boolean) => {
-    return controller.setOverlayPenetration(enabled)
+  ipcMain.handle('app:resizeOverlayBody', (_event, deltaY: number) => {
+    return controller.resizeOverlayBody(deltaY)
   })
   ipcMain.handle('app:chooseLogDirectory', async () => {
     const result = await dialog.showOpenDialog({

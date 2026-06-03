@@ -3,7 +3,6 @@ import { useTranslation } from 'react-i18next'
 
 import { ChannelList } from './components/ChannelList'
 import { MessageFeed } from './components/MessageFeed'
-import { OverlayHandleView } from './components/OverlayHandleView'
 import { OverlayView } from './components/OverlayView'
 import { SettingsPanel } from './components/SettingsPanel'
 import { StatusBar } from './components/StatusBar'
@@ -17,8 +16,7 @@ export function App() {
   const [isDockMenuOpen, setIsDockMenuOpen] = useState(false)
   const urlParams = new URLSearchParams(window.location.search)
   const isSettingsWindow = urlParams.get('view') === 'settings'
-  const isOverlayBodyWindow = urlParams.get('view') === 'overlay'
-  const isOverlayHandleWindow = urlParams.get('view') === 'overlay-handle'
+  const isOverlayWindow = urlParams.get('view') === 'overlay'
   const overlayChannelName = urlParams.get('channel') ?? ''
   const dockMenuRef = useRef<HTMLDivElement | null>(null)
   const dockMenuCloseTimeoutRef = useRef<number | null>(null)
@@ -114,11 +112,7 @@ export function App() {
       ? state.channelMessages[buildChannelStateKey(selectedCharacter.characterId, selectedChannelName)]
       : undefined
 
-  if (isOverlayHandleWindow && overlayChannelName) {
-    return <OverlayHandleView channelName={overlayChannelName} />
-  }
-
-  if (isOverlayBodyWindow && overlayChannelName) {
+  if (isOverlayWindow && overlayChannelName) {
     return <OverlayView channelName={overlayChannelName} />
   }
 

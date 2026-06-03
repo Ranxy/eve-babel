@@ -246,7 +246,7 @@ export interface EveBabelApi {
   onPortraitsUpdate: (listener: (portraits: Record<string, string>) => void) => () => void
   openOverlayWindow: (channelName: string) => Promise<void>
   closeOverlayWindow: () => Promise<void>
-  setOverlayPenetration: (enabled: boolean) => Promise<void>
+  resizeOverlayBody: (deltaY: number) => Promise<void>
 }
 
 export interface ParsedChunkResult {
