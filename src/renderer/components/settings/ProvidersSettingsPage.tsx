@@ -1,4 +1,4 @@
-﻿import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import type {
@@ -307,9 +307,9 @@ export function ProvidersSettingsPage(props: ProvidersSettingsPageProps) {
   }
 
   return (
-    <div className="providers-page">
-      <div className="providers-toolbar">
-        <label className="providers-search-field">
+    <div className="flex flex-col gap-3 min-h-0 flex-1">
+      <div className="flex items-center gap-2 shrink-0">
+        <label className="flex items-center gap-2.5 flex-1 border border-border rounded-lg bg-input-surface px-3.5 min-h-[38px] cursor-text focus-within:outline-2 focus-within:outline-[rgba(111,140,149,0.28)] focus-within:outline-offset-0 focus-within:rounded-lg">
           <SearchIcon />
           <input
             placeholder={t('providersSettings.searchPlaceholder')}
@@ -318,33 +318,33 @@ export function ProvidersSettingsPage(props: ProvidersSettingsPageProps) {
             onChange={(e) => setProviderSearch(e.target.value)}
           />
         </label>
-        <button className="ghost-button providers-add-custom-btn" type="button" onClick={handleAddCustom}>
+        <button className="rounded-full py-2 px-3.5 border border-border bg-ghost-button-surface text-text active:translate-y-px flex items-center gap-1.5" type="button" onClick={handleAddCustom}>
           <PlusIcon />
           {t('providersSettings.addCustomProvider')}
         </button>
       </div>
 
-      <div className="providers-content">
+      <div className="grid grid-cols-[220px_minmax(0,1fr)] min-h-0 flex-1 border border-border rounded-2xl overflow-hidden">
         {/* Left panel */}
-        <div className="providers-list-panel">
+        <div className="border-r border-border p-2 overflow-y-auto flex flex-col gap-0.5 bg-[rgba(246,248,251,0.5)] dark:bg-[rgba(18,26,36,0.4)]">
           {filteredBuiltins.map((provider) => {
             const provProfiles = profiles.filter((p) => p.providerId === provider.providerId)
             const isActive = activeProfileId ? provProfiles.some((p) => p.profileId === activeProfileId) : false
             return (
               <button
                 key={provider.providerId}
-                className={`providers-list-item ${!isCustomMode && selectedProviderId === provider.providerId ? 'selected' : ''}`}
+                className={`flex items-center gap-2.5 py-2 px-2.5 border border-transparent rounded-[10px] bg-transparent text-inherit text-left w-full cursor-pointer hover:bg-row-hover-surface ${!isCustomMode && selectedProviderId === provider.providerId ? 'selected' : ''}`}
                 type="button"
                 onClick={() => handleSelectBuiltin(provider.providerId)}
               >
-                <span className="providers-list-item-label">{provider.label}</span>
-                <span className="providers-list-item-meta">
+                <span className="flex-1 text-sm whitespace-nowrap overflow-hidden text-ellipsis">{provider.label}</span>
+                <span className="ml-auto">
                   {provProfiles.length > 0 ? (
-                    <span className={`chip ${isActive ? 'chip-ok' : 'chip-neutral'}`}>
+                    <span className={`inline-flex items-center justify-center min-h-6 py-[3px] px-2 rounded-full text-xs font-bold ${isActive ? 'bg-[rgba(44,106,70,0.16)] text-ok' : 'bg-accent-cold-soft text-accent-cold'}`}>
                       {t('providersSettings.status.model', { count: provProfiles.length })}
                     </span>
                   ) : (
-                    <span className="chip chip-neutral">{t('providersSettings.notConfigured')}</span>
+                    <span className="inline-flex items-center justify-center min-h-6 py-[3px] px-2 rounded-full bg-accent-cold-soft text-accent-cold text-xs font-bold">{t('providersSettings.notConfigured')}</span>
                   )}
                 </span>
               </button>
@@ -352,7 +352,7 @@ export function ProvidersSettingsPage(props: ProvidersSettingsPageProps) {
           })}
 
           {(filteredCustomProfiles.length > 0 || selectedCustomId === NEW_CUSTOM_SENTINEL) && (
-            <div className="providers-list-section-label">{t('providersSettings.customSection')}</div>
+            <div className="text-[10px] font-semibold tracking-[0.08em] uppercase text-muted py-3 px-3 pb-1">{t('providersSettings.customSection')}</div>
           )}
 
           {filteredCustomProfiles.map((profile) => {
@@ -360,13 +360,13 @@ export function ProvidersSettingsPage(props: ProvidersSettingsPageProps) {
             return (
               <button
                 key={profile.profileId}
-                className={`providers-list-item ${selectedCustomId === profile.profileId ? 'selected' : ''}`}
+                className={`flex items-center gap-2.5 py-2 px-2.5 border border-transparent rounded-[10px] bg-transparent text-inherit text-left w-full cursor-pointer hover:bg-row-hover-surface ${selectedCustomId === profile.profileId ? 'selected' : ''}`}
                 type="button"
                 onClick={() => handleSelectCustom(profile.profileId)}
               >
-                <span className="providers-list-item-label">{profile.customLabel || t('providersSettings.unnamedProvider')}</span>
-                <span className="providers-list-item-meta">
-                  <span className={`chip ${isActive ? 'chip-ok' : 'chip-neutral'}`}>
+                <span className="flex-1 text-sm whitespace-nowrap overflow-hidden text-ellipsis">{profile.customLabel || t('providersSettings.unnamedProvider')}</span>
+                <span className="ml-auto">
+                  <span className={`inline-flex items-center justify-center min-h-6 py-[3px] px-2 rounded-full text-xs font-bold ${isActive ? 'bg-[rgba(44,106,70,0.16)] text-ok' : 'bg-accent-cold-soft text-accent-cold'}`}>
                     {isActive ? t('providersSettings.status.active') : profile.modelName}
                   </span>
                 </span>
@@ -376,13 +376,13 @@ export function ProvidersSettingsPage(props: ProvidersSettingsPageProps) {
 
           {selectedCustomId === NEW_CUSTOM_SENTINEL && (
             <button
-              className="providers-list-item selected providers-list-item-draft"
+              className="flex items-center gap-2.5 py-2 px-2.5 border border-transparent rounded-[10px] bg-transparent text-inherit text-left w-full cursor-pointer hover:bg-row-hover-surface selected flex items-center gap-2.5 py-2 px-2.5 border border-transparent rounded-[10px] bg-transparent text-inherit text-left w-full cursor-pointer hover:bg-row-hover-surface-draft"
               type="button"
               onClick={handleAddCustom}
             >
-              <span className="providers-list-item-label">{t('providersSettings.newCustomProvider')}</span>
-              <span className="providers-list-item-meta">
-                <span className="chip chip-neutral">{t('providersSettings.draft')}</span>
+              <span className="flex-1 text-sm whitespace-nowrap overflow-hidden text-ellipsis">{t('providersSettings.newCustomProvider')}</span>
+              <span className="ml-auto">
+                <span className="inline-flex items-center justify-center min-h-6 py-[3px] px-2 rounded-full bg-accent-cold-soft text-accent-cold text-xs font-bold">{t('providersSettings.draft')}</span>
               </span>
             </button>
           )}
@@ -390,45 +390,45 @@ export function ProvidersSettingsPage(props: ProvidersSettingsPageProps) {
 
         {/* Right panel */}
         {isCustomMode ? (
-          <div className="providers-detail">
-            <div className="providers-detail-top">
-              <div className="providers-heading-row">
-                <h2 className="providers-detail-title">
+          <div className="p-5 overflow-y-auto flex flex-col gap-4">
+            <div className="flex flex-col gap-2.5">
+              <div className="flex items-center gap-2.5">
+                <h2 className="text-lg font-semibold m-0">
                   {selectedCustomId === NEW_CUSTOM_SENTINEL ? t('providersSettings.newCustomProvider') : (customName || t('providersSettings.customProvider'))}
                 </h2>
                 {selectedCustomId !== NEW_CUSTOM_SENTINEL && (
-                  <span className={`chip ${customIsActive ? 'chip-ok' : 'chip-neutral'}`}>
+                  <span className={`inline-flex items-center justify-center min-h-6 py-[3px] px-2 rounded-full text-xs font-bold ${customIsActive ? 'bg-[rgba(44,106,70,0.16)] text-ok' : 'bg-accent-cold-soft text-accent-cold'}`}>
                     {customIsActive ? t('providersSettings.status.active') : t('providersSettings.status.inactive')}
                   </span>
                 )}
               </div>
-              <p className="providers-detail-desc">
+              <p className="text-muted text-[13px] mt-1 max-w-[56ch]">
                 {t('providersSettings.customDescription')}
               </p>
             </div>
 
-            <hr className="providers-divider" />
+            <hr className="border-none border-t border-border m-0" />
 
-            <div className="providers-form-section">
-              <div className="providers-form-section-head">
-                <span className="eyebrow">{t('providersSettings.displayName.eyebrow')}</span>
+            <div className="flex flex-col gap-3">
+              <div className="flex items-start justify-between gap-3">
+                <span className="block text-muted text-[0.72rem] uppercase tracking-[0.16em]">{t('providersSettings.displayName.eyebrow')}</span>
               </div>
               <input
-                className="providers-text-input"
+                className="w-full box-border bg-input-surface border border-border rounded-lg py-[7px] px-3 text-sm text-text outline-none focus:border-accent focus:outline-2 focus:outline-[rgba(111,140,149,0.28)] focus:outline-offset-0 placeholder:text-muted"
                 placeholder={t('providersSettings.displayName.placeholder')}
                 value={customName}
                 onChange={(e) => setCustomName(e.target.value)}
               />
             </div>
 
-            <hr className="providers-divider" />
+            <hr className="border-none border-t border-border m-0" />
 
-            <div className="providers-form-section">
-              <div className="providers-form-section-head">
-                <span className="eyebrow">{t('providersSettings.apiBaseUrl.eyebrow')}</span>
+            <div className="flex flex-col gap-3">
+              <div className="flex items-start justify-between gap-3">
+                <span className="block text-muted text-[0.72rem] uppercase tracking-[0.16em]">{t('providersSettings.apiBaseUrl.eyebrow')}</span>
               </div>
               <input
-                className="providers-text-input"
+                className="w-full box-border bg-input-surface border border-border rounded-lg py-[7px] px-3 text-sm text-text outline-none focus:border-accent focus:outline-2 focus:outline-[rgba(111,140,149,0.28)] focus:outline-offset-0 placeholder:text-muted"
                 placeholder={t('providersSettings.apiBaseUrl.placeholder')}
                 spellCheck={false}
                 type="url"
@@ -437,14 +437,14 @@ export function ProvidersSettingsPage(props: ProvidersSettingsPageProps) {
               />
             </div>
 
-            <hr className="providers-divider" />
+            <hr className="border-none border-t border-border m-0" />
 
-            <div className="providers-form-section">
-              <div className="providers-form-section-head">
-                <span className="eyebrow">{t('providersSettings.apiKey.eyebrow')}</span>
+            <div className="flex flex-col gap-3">
+              <div className="flex items-start justify-between gap-3">
+                <span className="block text-muted text-[0.72rem] uppercase tracking-[0.16em]">{t('providersSettings.apiKey.eyebrow')}</span>
               </div>
-              <div className="providers-api-key-row">
-                <div className="providers-api-key-field">
+              <div className="flex items-center gap-2.5">
+                <div className="flex flex-1 items-center relative">
                   {customInStoredKeyMode ? (
                     <>
                       <input
@@ -457,7 +457,7 @@ export function ProvidersSettingsPage(props: ProvidersSettingsPageProps) {
                         onClick={() => { setCustomIsEditingKey(true); setCustomShowStoredKey(false); setCustomStoredKeyValue(null) }}
                       />
                       <button
-                        className="providers-eye-btn"
+                        className="absolute right-2 bg-none border-none cursor-pointer text-muted p-0.5 flex items-center hover:text-text"
                         title={customShowStoredKey ? t('providersSettings.apiKey.hideKey') : t('providersSettings.apiKey.showKey')}
                         type="button"
                         onClick={() => { void handleToggleCustomStoredKey() }}
@@ -476,7 +476,7 @@ export function ProvidersSettingsPage(props: ProvidersSettingsPageProps) {
                         onChange={(e) => setCustomApiKey(e.target.value)}
                       />
                       <button
-                        className="providers-eye-btn"
+                        className="absolute right-2 bg-none border-none cursor-pointer text-muted p-0.5 flex items-center hover:text-text"
                         title={customShowApiKey ? t('providersSettings.apiKey.hideKey') : t('providersSettings.apiKey.showKey')}
                         type="button"
                         onClick={() => setCustomShowApiKey((v) => !v)}
@@ -489,14 +489,14 @@ export function ProvidersSettingsPage(props: ProvidersSettingsPageProps) {
               </div>
             </div>
 
-            <hr className="providers-divider" />
+            <hr className="border-none border-t border-border m-0" />
 
-            <div className="providers-form-section">
-              <div className="providers-form-section-head">
-                <span className="eyebrow">{t('providersSettings.modelName.eyebrow')}</span>
+            <div className="flex flex-col gap-3">
+              <div className="flex items-start justify-between gap-3">
+                <span className="block text-muted text-[0.72rem] uppercase tracking-[0.16em]">{t('providersSettings.modelName.eyebrow')}</span>
               </div>
               <input
-                className="providers-text-input"
+                className="w-full box-border bg-input-surface border border-border rounded-lg py-[7px] px-3 text-sm text-text outline-none focus:border-accent focus:outline-2 focus:outline-[rgba(111,140,149,0.28)] focus:outline-offset-0 placeholder:text-muted"
                 placeholder={t('providersSettings.modelName.placeholder')}
                 spellCheck={false}
                 type="text"
@@ -507,11 +507,11 @@ export function ProvidersSettingsPage(props: ProvidersSettingsPageProps) {
 
             {customError && <div className="providers-fetch-error providers-custom-error">{customError}</div>}
 
-            <div className="providers-custom-actions">
-              <div className="providers-custom-actions-left">
+            <div className="flex items-center justify-between gap-2 mt-5 pt-4 border-t border-border">
+              <div className="flex items-center gap-2">
                 {selectedCustomId !== NEW_CUSTOM_SENTINEL && !customIsActive && (
                   <button
-                    className="ghost-button"
+                    className="rounded-full py-2 px-3.5 border border-border bg-ghost-button-surface text-text active:translate-y-px"
                     type="button"
                     onClick={() => props.onSetActiveLlmProviderProfile(selectedCustomId!)}
                   >
@@ -519,37 +519,37 @@ export function ProvidersSettingsPage(props: ProvidersSettingsPageProps) {
                   </button>
                 )}
                 {selectedCustomId !== NEW_CUSTOM_SENTINEL && (
-                  <button className="ghost-button providers-danger-btn" type="button" onClick={handleDeleteCustom}>
+                  <button className="rounded-full py-2 px-3.5 border border-border bg-ghost-button-surface text-text active:translate-y-px !text-[#e74c3c] hover:!bg-[rgba(231,76,60,0.08)]" type="button" onClick={handleDeleteCustom}>
                     {t('providersSettings.actions.delete')}
                   </button>
                 )}
               </div>
-              <button className="providers-save-btn" type="button" onClick={handleSaveCustom}>
+              <button className="bg-accent text-white border-none rounded-lg py-[7px] px-[18px] text-sm font-medium cursor-pointer transition-opacity duration-150 hover:opacity-85 disabled:opacity-50 disabled:cursor-not-allowed" type="button" onClick={handleSaveCustom}>
                 {selectedCustomId === NEW_CUSTOM_SENTINEL ? t('providersSettings.actions.addProvider') : t('providersSettings.actions.saveChanges')}
               </button>
             </div>
           </div>
         ) : (
           selectedProvider && (
-            <div className="providers-detail">
-              <div className="providers-detail-top">
-                <div className="providers-heading-row">
-                  <h2 className="providers-detail-title">{selectedProvider.label}</h2>
-                  <span className={`chip ${isProviderSelected ? 'chip-ok' : 'chip-neutral'}`}>
+            <div className="p-5 overflow-y-auto flex flex-col gap-4">
+              <div className="flex flex-col gap-2.5">
+                <div className="flex items-center gap-2.5">
+                  <h2 className="text-lg font-semibold m-0">{selectedProvider.label}</h2>
+                  <span className={`inline-flex items-center justify-center min-h-6 py-[3px] px-2 rounded-full text-xs font-bold ${isProviderSelected ? 'bg-[rgba(44,106,70,0.16)] text-ok' : 'bg-accent-cold-soft text-accent-cold'}`}>
                     {isProviderSelected ? t('providersSettings.status.active') : enabledCount > 0 ? t('providersSettings.status.model', { count: enabledCount }) : t('providersSettings.notConfigured')}
                   </span>
                 </div>
-                <p className="providers-detail-desc">{selectedProvider.description}</p>
+                <p className="text-muted text-[13px] mt-1 max-w-[56ch]">{selectedProvider.description}</p>
               </div>
 
-              <hr className="providers-divider" />
+              <hr className="border-none border-t border-border m-0" />
 
-              <div className="providers-form-section">
-                <div className="providers-form-section-head">
-                  <span className="eyebrow">{t('providersSettings.apiKey.eyebrow')}</span>
+              <div className="flex flex-col gap-3">
+                <div className="flex items-start justify-between gap-3">
+                  <span className="block text-muted text-[0.72rem] uppercase tracking-[0.16em]">{t('providersSettings.apiKey.eyebrow')}</span>
                 </div>
-                <div className="providers-api-key-row">
-                  <div className="providers-api-key-field">
+                <div className="flex items-center gap-2.5">
+                  <div className="flex flex-1 items-center relative">
                     {inStoredKeyMode ? (
                       <>
                         <input
@@ -562,7 +562,7 @@ export function ProvidersSettingsPage(props: ProvidersSettingsPageProps) {
                           onClick={() => { setIsEditingKey(true); setShowStoredKey(false); setStoredKeyValue(null) }}
                         />
                         <button
-                          className="providers-eye-btn"
+                          className="absolute right-2 bg-none border-none cursor-pointer text-muted p-0.5 flex items-center hover:text-text"
                           title={showStoredKey ? t('providersSettings.apiKey.hideKey') : t('providersSettings.apiKey.showKey')}
                           type="button"
                           onClick={() => { void handleToggleStoredKey() }}
@@ -581,7 +581,7 @@ export function ProvidersSettingsPage(props: ProvidersSettingsPageProps) {
                           onChange={(e) => setApiKey(e.target.value)}
                         />
                         <button
-                          className="providers-eye-btn"
+                          className="absolute right-2 bg-none border-none cursor-pointer text-muted p-0.5 flex items-center hover:text-text"
                           title={showApiKey ? t('providersSettings.apiKey.hideKey') : t('providersSettings.apiKey.showKey')}
                           type="button"
                           onClick={() => setShowApiKey((v) => !v)}
@@ -592,24 +592,24 @@ export function ProvidersSettingsPage(props: ProvidersSettingsPageProps) {
                     )}
                   </div>
                   {apiKeyLink && (
-                    <a className="providers-key-link" href={apiKeyLink} rel="noreferrer" target="_blank">
+                    <a className="text-xs whitespace-nowrap text-accent no-underline hover:underline" href={apiKeyLink} rel="noreferrer" target="_blank">
                       {t('providersSettings.apiKey.getKey')}
                     </a>
                   )}
                 </div>
               </div>
 
-              <hr className="providers-divider" />
+              <hr className="border-none border-t border-border m-0" />
 
               <div className="providers-form-section providers-models-section">
-                <div className="providers-form-section-head">
-                  <span className="eyebrow">{t('providersSettings.models.eyebrow')}</span>
-                  <button className="ghost-button" disabled={isFetching} type="button" onClick={handleFetch}>
+                <div className="flex items-start justify-between gap-3">
+                  <span className="block text-muted text-[0.72rem] uppercase tracking-[0.16em]">{t('providersSettings.models.eyebrow')}</span>
+                  <button className="rounded-full py-2 px-3.5 border border-border bg-ghost-button-surface text-text active:translate-y-px" disabled={isFetching} type="button" onClick={handleFetch}>
                     {isFetching ? t('providersSettings.models.fetching') : t('providersSettings.models.fetchModels')}
                   </button>
                 </div>
 
-                {fetchError && <div className="providers-fetch-error">{fetchError}</div>}
+                {fetchError && <div className="text-[#e74c3c] text-xs mb-2">{fetchError}</div>}
 
                 {sortedModels.length > 0 && (
                   <>
@@ -624,30 +624,31 @@ export function ProvidersSettingsPage(props: ProvidersSettingsPageProps) {
                         />
                       </label>
                     )}
-                    <div className="providers-model-count">
+                    <div className="text-[11px] text-muted mb-2">
                       {t('providersSettings.models.showing', { count: shownCount, enabled: enabledCount })}
                     </div>
-                    <div className="providers-model-list">
+                    <div className="flex flex-col gap-0.5 max-h-80 overflow-y-auto">
                       {sortedModels.map((model) => {
                         const existingProfile = providerProfiles.find((p) => p.modelName === model.modelId)
                         const isEnabled = Boolean(existingProfile)
                         const isToggling = togglingModelId === model.modelId
                         return (
-                          <div className="providers-model-row" key={model.modelId}>
-                            <div className="providers-model-info">
-                              <span className="providers-model-name">{model.modelId}</span>
+                          <div className="flex items-center justify-between py-2 px-2.5 rounded-md hover:bg-row-hover-surface" key={model.modelId}>
+                            <div className="flex flex-col min-w-0">
+                              <span className="text-[13px] font-medium">{model.modelId}</span>
                               {model.ownedBy && (
-                                <span className="providers-model-owned">{model.ownedBy}</span>
+                                <span className="text-[11px] text-muted">{model.ownedBy}</span>
                               )}
                             </div>
-                            <label className={`toggle-switch ${isToggling ? 'toggle-switch-busy' : ''}`}>
+                            <label className={`relative inline-block w-9 h-5 shrink-0 ${isToggling ? 'opacity-60 pointer-events-none' : ''}`}>
                               <input
                                 checked={isEnabled}
                                 disabled={isToggling}
                                 type="checkbox"
+                                className="opacity-0 w-0 h-0 absolute peer"
                                 onChange={() => { void handleModelToggle(model) }}
                               />
-                              <span className="toggle-switch-track" />
+                              <span className="absolute cursor-pointer inset-0 bg-border rounded-[10px] transition-[background] duration-150 peer-checked:bg-accent before:content-[''] before:absolute before:h-3.5 before:w-3.5 before:left-[3px] before:bottom-[3px] before:bg-white before:rounded-full before:transition-transform before:duration-150 peer-checked:before:translate-x-4" />
                             </label>
                           </div>
                         )
@@ -657,7 +658,7 @@ export function ProvidersSettingsPage(props: ProvidersSettingsPageProps) {
                 )}
 
                 {!isFetching && sortedModels.length === 0 && (
-                  <div className="providers-empty-models">
+                  <div className="text-muted text-[13px] py-4 text-center">
                     {referenceProfileId
                       ? t('providersSettings.models.fetchHintHasKey')
                       : t('providersSettings.models.fetchHintNoKey')}

@@ -2,6 +2,23 @@ import { contextBridge, ipcRenderer } from 'electron'
 
 import type { AppSettingsUpdate, ChatMessage, ChannelSummary, EveBabelApi, GlossaryEntry, MessagePageCursor } from '../shared/types'
 
+/* ── Dark mode class sync for Tailwind ────────────────────────────── */
+function applyColorScheme() {
+  if (!document?.documentElement) return
+  const dark = window.matchMedia('(prefers-color-scheme: dark)').matches
+  document.documentElement.classList.toggle('dark', dark)
+}
+// Wait for DOM to be available before applying
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', () => {
+    applyColorScheme()
+    window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', applyColorScheme)
+  })
+} else {
+  applyColorScheme()
+  window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', applyColorScheme)
+}
+
 const api: EveBabelApi = {
   getBootstrapData: () => ipcRenderer.invoke('app:getBootstrapData'),
   getChannelMessages: (channelName: string, before?: MessagePageCursor | null, limit?: number) => {

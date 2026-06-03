@@ -103,7 +103,7 @@ export function TerminologySettingsPage(props: TerminologySettingsPageProps) {
   return (
     <div className="settings-page-stack">
       {props.glossary.length > 0 && (
-        <div className="terminology-search-row">
+        <div className="mb-2">
           <label className="providers-search-field">
             <SearchIcon />
             <input
@@ -117,17 +117,17 @@ export function TerminologySettingsPage(props: TerminologySettingsPageProps) {
       )}
 
       {props.glossary.length === 0 && !editingEntry ? (
-        <div className="terminology-empty">
-          <p className="terminology-empty-text">{t('terminologySettings.emptyState')}</p>
-          <button className="primary-button" type="button" onClick={handleStartAdd}>
+        <div className="flex flex-col items-center justify-center py-12 px-6 text-center gap-4">
+          <p className="text-muted text-sm leading-relaxed max-w-[420px] m-0">{t('terminologySettings.emptyState')}</p>
+          <button className="rounded-full py-2 px-3.5 border border-transparent bg-primary-button-surface text-primary-button-text font-bold active:translate-y-px disabled:opacity-50" type="button" onClick={handleStartAdd}>
             {t('terminologySettings.actions.addFirst')}
           </button>
         </div>
       ) : (
         <>
-          <div className="terminology-list-header">
-            <span className="eyebrow">{t('terminologySettings.termsLabel')}</span>
-            <button className="ghost-button" type="button" onClick={handleStartAdd}>
+          <div className="flex items-center justify-between mb-2">
+            <span className="block text-muted text-[0.72rem] uppercase tracking-[0.16em]">{t('terminologySettings.termsLabel')}</span>
+            <button className="rounded-full py-2 px-3.5 border border-border bg-ghost-button-surface text-text active:translate-y-px" type="button" onClick={handleStartAdd}>
               <PlusIcon />
               {t('terminologySettings.actions.addTerm')}
             </button>
@@ -140,25 +140,25 @@ export function TerminologySettingsPage(props: TerminologySettingsPageProps) {
               const overflow = entries.length > 3 ? entries.length - 3 : 0
 
               return (
-                <div className="terminology-term-row" key={entry.id}>
-                  <button className="terminology-term-info" type="button" onClick={() => openEditor(entry)}>
+                <div className="flex items-center border-b border-border py-1.5" key={entry.id}>
+                  <button className="flex flex-col gap-0.5 flex-1 min-w-0 bg-none border-none cursor-pointer text-left py-1.5 text-text hover:text-accent" type="button" onClick={() => openEditor(entry)}>
                     {first && (
-                      <span className="terminology-term-name">
-                        <span className="terminology-term-name-lang">{first[0]}: </span>
+                      <span className="font-semibold text-sm font-mono">
+                        <span className="font-normal text-[0.72rem] text-muted font-sans uppercase tracking-[0.03em]">{first[0]}: </span>
                         {variantsToText(first[1])}
                       </span>
                     )}
-                    <span className="terminology-term-translations">
+                    <span className="flex flex-wrap gap-1 gap-x-2">
                       {rest.map(([lang, variants]) => (
-                        <span className="terminology-term-lang" key={lang}>
+                        <span className="text-xs text-muted" key={lang}>
                           {lang}: {variantsToText(variants)}
                         </span>
                       ))}
-                      {overflow > 0 && <span className="terminology-term-lang">+{overflow}</span>}
+                      {overflow > 0 && <span className="text-xs text-muted">+{overflow}</span>}
                     </span>
                   </button>
                   <button
-                    className="ghost-button terminology-delete-btn"
+                    className="rounded-full py-2 px-3.5 border border-border bg-ghost-button-surface text-text active:translate-y-px shrink-0 !text-[#e74c3c]"
                     title={t('terminologySettings.actions.delete')}
                     type="button"
                     onClick={() => handleDeleteEntry(entry.id)}
@@ -173,7 +173,7 @@ export function TerminologySettingsPage(props: TerminologySettingsPageProps) {
       )}
 
       {editingEntry && (
-          <div className="terminology-editor-panel">
+          <div className="mt-4 pl-4 border-l border-border">
             <div className="providers-detail">
               <div className="providers-detail-top">
                 <h2 className="providers-detail-title">
@@ -188,7 +188,7 @@ export function TerminologySettingsPage(props: TerminologySettingsPageProps) {
 
               <div className="providers-form-section">
                 <div className="providers-form-section-head">
-                  <span className="eyebrow">{t('terminologySettings.editor.notesLabel')}</span>
+                  <span className="block text-muted text-[0.72rem] uppercase tracking-[0.16em]">{t('terminologySettings.editor.notesLabel')}</span>
                 </div>
                 <input
                   className="providers-text-input"
@@ -203,10 +203,10 @@ export function TerminologySettingsPage(props: TerminologySettingsPageProps) {
 
               <div className="providers-form-section">
                 <div className="providers-form-section-head">
-                  <span className="eyebrow">{t('terminologySettings.editor.termsLabel')}</span>
+                  <span className="block text-muted text-[0.72rem] uppercase tracking-[0.16em]">{t('terminologySettings.editor.termsLabel')}</span>
                   {availableLanguages.length > 0 && (
                     <select
-                      className="terminology-lang-add-select"
+                      className="text-xs py-[3px] px-1.5 border border-border rounded-md bg-white text-text cursor-pointer dark:bg-[rgba(14,21,29,0.92)]"
                       value=""
                       onChange={(e) => {
                         if (e.target.value) handleAddLanguage(e.target.value)
@@ -223,18 +223,18 @@ export function TerminologySettingsPage(props: TerminologySettingsPageProps) {
                 </div>
 
                 {Object.keys(rawTerms).length === 0 ? (
-                  <div className="terminology-no-langs">
+                  <div className="text-muted text-sm py-3">
                     {t('terminologySettings.editor.noLanguages')}
                   </div>
                 ) : (
-                  <div className="terminology-langs-list">
+                  <div className="flex flex-col gap-1.5 mt-1">
                     {Object.entries(rawTerms).map(([lang, variants]) => {
                       const langLabel =
                         TARGET_LANGUAGE_OPTIONS.find((o) => o.value === lang)?.label ?? lang
                       return (
-                        <div className="terminology-lang-row" key={lang}>
-                          <span className="terminology-lang-label">{langLabel}</span>
-                          <div className="terminology-lang-chip-area">
+                        <div className="flex items-center gap-2" key={lang}>
+                          <span className="shrink-0 w-[90px] text-sm text-muted whitespace-nowrap overflow-hidden text-ellipsis">{langLabel}</span>
+                          <div className="flex-1 min-w-0">
                             <ChipInput
                               placeholder={t('terminologySettings.editor.termPlaceholder')}
                               values={variants}
@@ -242,13 +242,12 @@ export function TerminologySettingsPage(props: TerminologySettingsPageProps) {
                             />
                           </div>
                           <button
-                            className="ghost-button terminology-lang-remove-btn"
+                            className="rounded-full py-2 px-3.5 border border-border bg-ghost-button-surface text-text active:translate-y-px shrink-0 text-xs text-muted"
                             title={t('terminologySettings.editor.removeLanguage')}
                             type="button"
                             onClick={() => handleRemoveLanguage(lang)}
                           >
-                            âœ•
-                          </button>
+                            âœ?                          </button>
                         </div>
                       )
                     })}
@@ -260,7 +259,7 @@ export function TerminologySettingsPage(props: TerminologySettingsPageProps) {
               </div>
 
               <div className="providers-custom-actions">
-                <button className="ghost-button" type="button" onClick={handleCancelEdit}>
+                <button className="rounded-full py-2 px-3.5 border border-border bg-ghost-button-surface text-text active:translate-y-px" type="button" onClick={handleCancelEdit}>
                   {t('terminologySettings.editor.cancel')}
                 </button>
                 <button
@@ -281,7 +280,7 @@ export function TerminologySettingsPage(props: TerminologySettingsPageProps) {
   )
 }
 
-// â”€â”€ ChipInput â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// â”¢ãâ”¢ã ChipInput â”¢ãâ”¢ãâ”¢ãâ”¢ãâ”¢ãâ”¢ãâ”¢ãâ”¢ãâ”¢ãâ”¢ãâ”¢ãâ”¢ãâ”¢ãâ”¢ãâ”¢ãâ”¢ãâ”¢ãâ”¢ãâ”¢ãâ”¢ãâ”¢ãâ”¢ãâ”¢ãâ”¢ãâ”¢ãâ”¢ãâ”¢ãâ”¢ãâ”¢ãâ”¢ãâ”¢ãâ”¢ãâ”¢ãâ”¢ãâ”¢ãâ”¢ãâ”¢ãâ”¢ãâ”¢ãâ”¢ãâ”¢ãâ”¢ãâ”¢ãâ”¢ãâ”¢ãâ”¢ãâ”¢ãâ”¢ãâ”¢ãâ”¢ãâ”¢ãâ”¢ãâ”¢ãâ”¢ãâ”¢ãâ”¢ãâ”¢ãâ”¢ãâ”¢ãâ”¢ã
 
 interface ChipInputProps {
   placeholder: string
@@ -335,12 +334,12 @@ function ChipInput({ placeholder, values, onChange }: ChipInputProps) {
   }
 
   return (
-    <div className="chip-input-container" onClick={focusInput}>
+    <div className="flex flex-wrap items-center gap-1 min-h-[34px] py-[3px] px-2 bg-white border border-border rounded-md cursor-text transition-[border-color,outline] duration-150 focus-within:border-accent focus-within:outline-2 focus-within:outline-[rgba(111,140,149,0.28)] focus-within:outline-offset-0 dark:bg-[rgba(14,21,29,0.92)]" onClick={focusInput}>
       {values.map((value, index) => (
-        <span className="chip-input-chip" key={index}>
-          <span className="chip-input-chip-text">{value}</span>
+        <span className="inline-flex items-center gap-[3px] py-px pr-0.5 pl-2 bg-[rgba(111,140,149,0.12)] border border-[rgba(111,140,149,0.22)] rounded-[5px] text-sm leading-normal text-text select-none whitespace-nowrap" key={index}>
+          <span className="max-w-[180px] overflow-hidden text-ellipsis">{value}</span>
           <button
-            className="chip-input-chip-remove"
+            className="inline-flex items-center justify-center size-[18px] p-0 border-none rounded-xs bg-transparent text-muted text-[0.7rem] cursor-pointer leading-none transition-[background,color] duration-120 hover:bg-[rgba(231,76,60,0.15)] hover:text-[#e74c3c]"
             type="button"
             onClick={(e) => {
               e.stopPropagation()
@@ -348,13 +347,12 @@ function ChipInput({ placeholder, values, onChange }: ChipInputProps) {
             }}
             tabIndex={-1}
           >
-            âœ•
-          </button>
+            âœ?          </button>
         </span>
       ))}
       <input
         ref={inputRef}
-        className="chip-input-field"
+        className="flex-1 min-w-[80px] border-none outline-none bg-transparent text-sm text-text py-[3px] leading-normal placeholder:text-muted"
         placeholder={values.length === 0 ? placeholder : undefined}
         spellCheck={false}
         value={text}
@@ -366,7 +364,7 @@ function ChipInput({ placeholder, values, onChange }: ChipInputProps) {
   )
 }
 
-// â”€â”€ Icons â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// â”¢ãâ”¢ã Icons â”¢ãâ”¢ãâ”¢ãâ”¢ãâ”¢ãâ”¢ãâ”¢ãâ”¢ãâ”¢ãâ”¢ãâ”¢ãâ”¢ãâ”¢ãâ”¢ãâ”¢ãâ”¢ãâ”¢ãâ”¢ãâ”¢ãâ”¢ãâ”¢ãâ”¢ãâ”¢ãâ”¢ãâ”¢ãâ”¢ãâ”¢ãâ”¢ãâ”¢ãâ”¢ãâ”¢ãâ”¢ãâ”¢ãâ”¢ãâ”¢ãâ”¢ãâ”¢ãâ”¢ãâ”¢ãâ”¢ãâ”¢ãâ”¢ãâ”¢ãâ”¢ãâ”¢ãâ”¢ãâ”¢ãâ”¢ãâ”¢ãâ”¢ãâ”¢ãâ”¢ãâ”¢ãâ”¢ãâ”¢ãâ”¢ãâ”¢ãâ”¢ãâ”¢ãâ”¢ãâ”¢ãâ”¢ãâ”¢ãâ”¢ã
 
 function SearchIcon() {
   return (

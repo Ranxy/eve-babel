@@ -112,16 +112,25 @@ export function OverlayView({ channelName }: OverlayViewProps) {
   const selectedCharacter = state.characters.find((c) => c.characterId === selectedCharacterId) ?? null
   const chatMessages = messages.filter((m) => m.messageType === 'chat')
 
+  const msgBg = isOpaque ? 'bg-black/5' : 'bg-black/[0.02]'
+  const selfMsgBg = isOpaque ? 'bg-[rgba(70,100,120,0.08)]' : 'bg-[rgba(70,100,120,0.04)]'
+
   return (
-    <div className={`overlay-window ${isOpaque ? 'overlay-window-opaque' : ''}`}>
-      <div className="overlay-header">
-        <div className="overlay-header-drag">
-          <span className="overlay-header-channel">{channelName}</span>
+    <div
+      className={`flex flex-col h-full rounded-md border overflow-hidden font-sans text-[#0d0d1a] [-webkit-app-region:none] [text-shadow:0_0_3px_rgba(255,255,255,0.7)] ${
+        isOpaque
+          ? 'bg-[#f0f2f6] border-black/10'
+          : 'bg-white/10 border-black/[0.04]'
+      }`}
+    >
+      <div className="flex items-center justify-between h-8 px-[5px] shrink-0 border-b border-black/[0.03] select-none text-xs leading-none">
+        <div className="flex-1 [-webkit-app-region:drag] flex items-center h-full px-2">
+          <span className="font-semibold tracking-[0.02em] text-[#0d0d1a]">{channelName}</span>
         </div>
-        <div className="overlay-header-actions">
+        <div className="flex items-center gap-0.5 [-webkit-app-region:none]">
           <button
             aria-label={isOpaque ? 'Switch to transparent' : 'Switch to opaque'}
-            className="overlay-header-btn"
+            className="flex items-center justify-center size-[22px] p-0 border-none rounded-xs bg-transparent text-[#2d2d44] text-xs cursor-pointer leading-none transition-[background,color] duration-120 hover:bg-black/10 hover:text-[#0d0d1a]"
             onClick={() => setIsOpaque((v) => !v)}
             title={isOpaque ? 'Switch to transparent mode' : 'Switch to opaque mode'}
             type="button"
@@ -130,7 +139,7 @@ export function OverlayView({ channelName }: OverlayViewProps) {
           </button>
           <button
             aria-label="Close overlay"
-            className="overlay-header-btn overlay-header-close"
+            className="flex items-center justify-center size-[22px] p-0 border-none rounded-xs bg-transparent text-[#2d2d44] text-xs cursor-pointer leading-none transition-[background,color] duration-120 hover:bg-[rgba(200,60,60,0.15)] hover:text-[#b03a3a]"
             onClick={handleClose}
             title="Close overlay"
             type="button"
@@ -139,9 +148,9 @@ export function OverlayView({ channelName }: OverlayViewProps) {
           </button>
         </div>
       </div>
-      <div className="overlay-feed" onScroll={handleScroll} ref={feedRef}>
+      <div className="flex-1 overflow-y-auto overflow-x-hidden py-2 px-2.5 scroll-smooth scrollbar-overlay" onScroll={handleScroll} ref={feedRef}>
         {chatMessages.length === 0 ? (
-          <div className="overlay-empty">Waiting for messages…</div>
+          <div className="flex items-center justify-center h-full text-[#555566] text-xs italic">Waiting for messages…</div>
         ) : (
           chatMessages.map((message) => {
             const hasTranslation = !!message.translatedText
@@ -149,20 +158,30 @@ export function OverlayView({ channelName }: OverlayViewProps) {
 
             return (
               <div
-                className={`overlay-msg ${isSelf ? 'overlay-msg-self' : ''}`}
+                className={`mb-1.5 px-1.5 py-1 rounded-xs border-l-2 ${
+                  isSelf
+                    ? `border-l-[rgba(70,100,120,0.45)] ${selfMsgBg}`
+                    : `border-l-[rgba(100,120,140,0.25)] ${msgBg}`
+                }`}
                 key={message.messageId}
               >
-                <div className="overlay-msg-meta">
-                  <span className="overlay-msg-sender">{message.senderName}</span>
-                  <span className="overlay-msg-time">{formatOverlayTime(message.timestamp)}</span>
+                <div className="flex items-baseline justify-between mb-0.5">
+                  <span
+                    className={`text-[0.7rem] font-semibold max-w-[60%] overflow-hidden text-ellipsis whitespace-nowrap ${
+                      isSelf ? 'text-[#1d3a55]' : 'text-[#2d4a6e]'
+                    }`}
+                  >
+                    {message.senderName}
+                  </span>
+                  <span className="text-[0.62rem] text-[#556666] shrink-0">{formatOverlayTime(message.timestamp)}</span>
                 </div>
                 {hasTranslation ? (
                   <>
-                    <div className="overlay-msg-translated">{message.translatedText}</div>
-                    <div className="overlay-msg-original">{message.messageText}</div>
+                    <div className="text-xs text-[#0d0d1a] font-medium leading-[1.4] mb-px break-words">{message.translatedText}</div>
+                    <div className="text-[0.67rem] text-[#445566] leading-[1.35] break-words">{message.messageText}</div>
                   </>
                 ) : (
-                  <div className="overlay-msg-original">{message.messageText}</div>
+                  <div className="text-[0.67rem] text-[#445566] leading-[1.35] break-words">{message.messageText}</div>
                 )}
               </div>
             )
@@ -170,7 +189,7 @@ export function OverlayView({ channelName }: OverlayViewProps) {
         )}
       </div>
       <div
-        className="overlay-resize-handle"
+        className="shrink-0 h-1.5 cursor-s-resize bg-transparent [-webkit-app-region:none] hover:bg-black/[0.06]"
         onMouseDown={handleResizeMouseDown}
       />
     </div>

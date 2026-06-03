@@ -84,24 +84,29 @@ export function SettingsPanel(props: SettingsPanelProps) {
   }, [props.forceLlmSetup])
 
   return (
-    <div className="settings-shell">
-      <aside className="settings-sidebar">
-        <nav className="settings-sidebar-nav" aria-label={t('settingsPanel.ariaLabel')}>
-          {SETTINGS_SECTIONS.map((section) => (
-            <button
-              className={`settings-sidebar-item ${selectedSection === section.id ? 'active' : ''}`}
-              key={section.id}
-              onClick={() => setSelectedSection(section.id)}
-              type="button"
-            >
-              <span className="settings-sidebar-icon">{section.icon}</span>
-              <span className="settings-sidebar-label">{section.label}</span>
-            </button>
-          ))}
+    <div className="grid grid-cols-[180px_minmax(0,1fr)] grid-rows-[minmax(0,1fr)_auto] flex-1 min-h-0 border border-border bg-panel-surface rounded-3xl backdrop-blur-[18px] overflow-hidden">
+      <aside className="[grid-column:1] [grid-row:1/3] border-r border-border py-4 px-2.5 bg-[rgba(246,248,251,0.6)] dark:bg-[rgba(18,26,36,0.6)]">
+        <nav className="flex flex-col gap-1" aria-label={t('settingsPanel.ariaLabel')}>
+          {SETTINGS_SECTIONS.map((section) => {
+            const isActive = selectedSection === section.id
+            return (
+              <button
+                className={`flex items-center gap-2.5 w-full py-[9px] px-3 border border-transparent rounded-lg bg-transparent text-inherit text-left cursor-pointer hover:bg-row-hover-surface ${
+                  isActive ? 'bg-row-hover-surface border-[rgba(111,140,149,0.22)]' : ''
+                }`}
+                key={section.id}
+                onClick={() => setSelectedSection(section.id)}
+                type="button"
+              >
+                <span className={`flex items-center justify-center w-5 flex-none ${isActive ? 'text-accent-cold' : 'text-muted'}`}>{section.icon}</span>
+                <span className="text-sm font-medium">{section.label}</span>
+              </button>
+            )
+          })}
         </nav>
       </aside>
 
-      <div className="settings-body">
+      <div className="[grid-column:2] [grid-row:1] py-4 px-5 flex flex-col gap-4 min-h-0">
         {selectedSection === 'providers' ? (
           <ProvidersSettingsPage
             apiStatus={props.apiStatus}
@@ -133,13 +138,13 @@ export function SettingsPanel(props: SettingsPanelProps) {
         )}
       </div>
 
-      <footer className="settings-footer">
-        <span className="settings-footer-status">{t('settingsPanel.footer.allSaved')}</span>
-        <div className="settings-footer-actions">
-          <button className="ghost-button" onClick={() => window.close()} type="button">
+      <footer className="[grid-column:2] [grid-row:2] flex justify-between items-center py-2.5 px-5 border-t border-border">
+        <span className="text-muted text-sm">{t('settingsPanel.footer.allSaved')}</span>
+        <div className="flex gap-2">
+          <button className="rounded-full py-2 px-3.5 border border-border bg-ghost-button-surface text-text active:translate-y-px" onClick={() => window.close()} type="button">
             {t('settingsPanel.footer.close')}
           </button>
-          <button className="primary-button" disabled type="button">
+          <button className="rounded-full py-2 px-3.5 border border-transparent bg-primary-button-surface text-primary-button-text font-bold active:translate-y-px disabled:opacity-50" disabled type="button">
             {t('settingsPanel.footer.save')}
           </button>
         </div>

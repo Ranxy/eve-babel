@@ -31,40 +31,51 @@ export function ChannelList(props: ChannelListProps) {
   const sorted = sortedChannels(props.channels)
 
   return (
-    <section className="channel-sidebar">
-      <div className="panel-header channel-sidebar-header">
+    <section className="grid grid-rows-[auto_minmax(0,1fr)] gap-2 min-h-0">
+      <div className="grid grid-cols-[minmax(0,1fr)_auto] gap-4 items-start pt-0.5 px-0.5 pb-0">
         <div>
-          <div className="eyebrow">{t('channelList.eyebrow')}</div>
+          <div className="block text-muted text-[0.72rem] uppercase tracking-[0.16em]">{t('channelList.eyebrow')}</div>
           <h2>{t('channelList.title')}</h2>
         </div>
-        <span className="chip">{selectedChannel ? t('channelList.focused') : t('channelList.total', { count: props.channels.length })}</span>
+        <span className="inline-flex items-center justify-center min-h-6 py-[3px] px-2 rounded-full bg-accent-soft text-accent text-xs font-bold">{selectedChannel ? t('channelList.focused') : t('channelList.total', { count: props.channels.length })}</span>
       </div>
-      <div className="channel-list channel-list-scroll">
-        {props.channels.length === 0 ? <div className="empty-state">{t('channelList.noChannels')}</div> : null}
+      <div className="grid gap-2 min-h-0 overflow-auto pr-1 scrollbar-thin">
+        {props.channels.length === 0 ? <div className="min-h-[180px] rounded-2xl border border-dashed border-border bg-empty-surface grid place-items-center text-center p-5">{t('channelList.noChannels')}</div> : null}
         {sorted.map((channel) => {
           const isSelected = channel.channelName === props.selectedChannelName
 
           return (
-            <div className={`channel-row ${isSelected ? 'selected' : ''}`} key={channel.channelName}>
-              <button className="channel-select" onClick={() => props.onSelectChannel(channel.channelName)} type="button">
-                <div className="channel-row-main">
-                  <div className="channel-row-copy">
-                    <div className="channel-name">{channel.channelName}</div>
-                    <div className="channel-meta channel-meta-inline">
+            <div
+              className={`grid grid-cols-[minmax(0,1fr)_auto] gap-2.5 py-2.5 pr-2.5 pl-3 rounded-xl border border-border bg-row-surface items-center ${
+                isSelected
+                  ? 'border-[rgba(111,140,149,0.3)] bg-row-hover-surface'
+                  : 'hover:border-[rgba(111,140,149,0.3)] hover:bg-row-hover-surface'
+              }`}
+              key={channel.channelName}
+            >
+              <button className="border-none bg-transparent p-0 text-left grid gap-1.5 text-inherit" onClick={() => props.onSelectChannel(channel.channelName)} type="button">
+                <div className="flex items-center justify-between gap-2 flex-wrap">
+                  <div className="min-w-0 grid gap-1">
+                    <div className="whitespace-nowrap overflow-hidden text-ellipsis font-bold">{channel.channelName}</div>
+                    <div className="flex items-center gap-2 text-[0.76rem] text-muted uppercase tracking-[0.16em] [&_span:last-child]:text-muted">
                       <span>{formatSessionLabel(channel.latestSessionStarted, t('channelList.noSession'))}</span>
                     </div>
                   </div>
                 </div>
-                <div className="channel-row-foot">
-                  <span className={`channel-state ${channel.enabled ? 'is-live' : 'is-muted'}`}>
+                <div className="flex items-center justify-between gap-2 flex-wrap">
+                  <span
+                    className={`inline-flex items-center gap-[5px] text-[0.76rem] before:content-[''] before:w-2 before:h-2 before:rounded-full before:bg-current ${
+                      channel.enabled ? 'text-ok' : 'text-muted'
+                    }`}
+                  >
                       {channel.enabled ? t('channelList.translationOn') : t('channelList.translationOff')}
                   </span>
                 </div>
               </button>
-              <div className="channel-actions">
+              <div className="grid justify-items-end content-center gap-1.5">
                 <button
                   aria-label={t('channelList.overlayLabel', { name: channel.channelName })}
-                  className="channel-overlay-button"
+                  className="flex items-center justify-center size-[26px] p-0 mr-0.5 border-none rounded-xs bg-transparent text-muted text-sm cursor-pointer leading-none transition-[background,color] duration-120 hover:bg-accent-soft hover:text-accent"
                   onClick={() => void window.eveBabel.openOverlayWindow(channel.channelName)}
                   title={t('channelList.overlayTitle')}
                   type="button"
@@ -73,13 +84,17 @@ export function ChannelList(props: ChannelListProps) {
                 </button>
                 <button
                   aria-label={channel.pinned ? t('channelList.unpinLabel', { name: channel.channelName }) : t('channelList.pinLabel', { name: channel.channelName })}
-                  className={`channel-pin-button ${channel.pinned ? 'is-pinned' : ''}`}
+                  className={`min-h-6 min-w-[58px] border border-border rounded-full bg-transparent py-[3px] px-2 text-[0.7rem] ${
+                    channel.pinned
+                      ? 'bg-accent-soft border-[rgba(111,140,149,0.28)] text-accent'
+                      : 'text-muted hover:bg-accent-soft hover:border-[rgba(111,140,149,0.28)] hover:text-accent focus-visible:bg-accent-soft focus-visible:border-[rgba(111,140,149,0.28)] focus-visible:text-accent'
+                  }`}
                   onClick={() => props.onTogglePinned(channel.channelName, !channel.pinned)}
                   type="button"
                 >
                   {channel.pinned ? t('channelList.pinned') : t('channelList.pin')}
                 </button>
-                <label className="channel-toggle">
+                <label className="grid justify-items-center content-center gap-1.5 [&_input]:size-4 [&_input]:[accent-color:var(--accent)]">
                   <input
                     checked={channel.enabled}
                     onChange={(event) => props.onToggleChannel(channel.channelName, event.target.checked)}
