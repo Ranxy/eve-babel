@@ -97,25 +97,11 @@ export function TerminologySettingsPage(props: TerminologySettingsPageProps) {
     }
   }
 
-  const hoverLang = TARGET_LANGUAGE_OPTIONS.find((o) => o.value === props.targetLanguage)
   const usedLanguages = new Set(Object.keys(rawTerms))
   const availableLanguages = TARGET_LANGUAGE_OPTIONS.filter((opt) => !usedLanguages.has(opt.value))
 
   return (
     <div className="settings-page-stack">
-      <div className="settings-note-grid">
-        <div className="settings-note">
-          <span className="settings-note-label">{t('terminologySettings.summary.label')}</span>
-          <strong>{t('terminologySettings.summary.count', { count: props.glossary.length })}</strong>
-          <span className="settings-field-hint">{t('terminologySettings.summary.hint')}</span>
-        </div>
-        <div className="settings-note">
-          <span className="settings-note-label">{t('terminologySettings.activeLanguage.label')}</span>
-          <strong>{hoverLang?.label ?? props.targetLanguage}</strong>
-          <span className="settings-field-hint">{t('terminologySettings.activeLanguage.hint')}</span>
-        </div>
-      </div>
-
       {props.glossary.length > 0 && (
         <div className="terminology-search-row">
           <label className="providers-search-field">
@@ -130,66 +116,63 @@ export function TerminologySettingsPage(props: TerminologySettingsPageProps) {
         </div>
       )}
 
-      <div className="terminology-content">
-        <div className="terminology-list-panel">
-          {props.glossary.length === 0 ? (
-            <div className="terminology-empty">
-              <p className="terminology-empty-text">{t('terminologySettings.emptyState')}</p>
-              <button className="primary-button" type="button" onClick={handleStartAdd}>
-                {t('terminologySettings.actions.addFirst')}
-              </button>
-            </div>
-          ) : (
-            <>
-              <div className="terminology-list-header">
-                <span className="eyebrow">{t('terminologySettings.termsLabel')}</span>
-                <button className="ghost-button" type="button" onClick={handleStartAdd}>
-                  <PlusIcon />
-                  {t('terminologySettings.actions.addTerm')}
-                </button>
-              </div>
-              <div className="providers-model-list">
-                {filteredGlossary.map((entry) => {
-                  const entries = Object.entries(entry.terms)
-                  const first = entries[0]
-                  const rest = entries.slice(1, 3)
-                  const overflow = entries.length > 3 ? entries.length - 3 : 0
-
-                  return (
-                    <div className="terminology-term-row" key={entry.id}>
-                      <button className="terminology-term-info" type="button" onClick={() => openEditor(entry)}>
-                        {first && (
-                          <span className="terminology-term-name">
-                            <span className="terminology-term-name-lang">{first[0]}: </span>
-                            {variantsToText(first[1])}
-                          </span>
-                        )}
-                        <span className="terminology-term-translations">
-                          {rest.map(([lang, variants]) => (
-                            <span className="terminology-term-lang" key={lang}>
-                              {lang}: {variantsToText(variants)}
-                            </span>
-                          ))}
-                          {overflow > 0 && <span className="terminology-term-lang">+{overflow}</span>}
-                        </span>
-                      </button>
-                      <button
-                        className="ghost-button terminology-delete-btn"
-                        title={t('terminologySettings.actions.delete')}
-                        type="button"
-                        onClick={() => handleDeleteEntry(entry.id)}
-                      >
-                        <TrashIcon />
-                      </button>
-                    </div>
-                  )
-                })}
-              </div>
-            </>
-          )}
+      {props.glossary.length === 0 && !editingEntry ? (
+        <div className="terminology-empty">
+          <p className="terminology-empty-text">{t('terminologySettings.emptyState')}</p>
+          <button className="primary-button" type="button" onClick={handleStartAdd}>
+            {t('terminologySettings.actions.addFirst')}
+          </button>
         </div>
+      ) : (
+        <>
+          <div className="terminology-list-header">
+            <span className="eyebrow">{t('terminologySettings.termsLabel')}</span>
+            <button className="ghost-button" type="button" onClick={handleStartAdd}>
+              <PlusIcon />
+              {t('terminologySettings.actions.addTerm')}
+            </button>
+          </div>
+          <div className="providers-model-list">
+            {filteredGlossary.map((entry) => {
+              const entries = Object.entries(entry.terms)
+              const first = entries[0]
+              const rest = entries.slice(1, 3)
+              const overflow = entries.length > 3 ? entries.length - 3 : 0
 
-        {editingEntry && (
+              return (
+                <div className="terminology-term-row" key={entry.id}>
+                  <button className="terminology-term-info" type="button" onClick={() => openEditor(entry)}>
+                    {first && (
+                      <span className="terminology-term-name">
+                        <span className="terminology-term-name-lang">{first[0]}: </span>
+                        {variantsToText(first[1])}
+                      </span>
+                    )}
+                    <span className="terminology-term-translations">
+                      {rest.map(([lang, variants]) => (
+                        <span className="terminology-term-lang" key={lang}>
+                          {lang}: {variantsToText(variants)}
+                        </span>
+                      ))}
+                      {overflow > 0 && <span className="terminology-term-lang">+{overflow}</span>}
+                    </span>
+                  </button>
+                  <button
+                    className="ghost-button terminology-delete-btn"
+                    title={t('terminologySettings.actions.delete')}
+                    type="button"
+                    onClick={() => handleDeleteEntry(entry.id)}
+                  >
+                    <TrashIcon />
+                  </button>
+                </div>
+              )
+            })}
+          </div>
+        </>
+      )}
+
+      {editingEntry && (
           <div className="terminology-editor-panel">
             <div className="providers-detail">
               <div className="providers-detail-top">
@@ -294,7 +277,6 @@ export function TerminologySettingsPage(props: TerminologySettingsPageProps) {
             </div>
           </div>
         )}
-      </div>
     </div>
   )
 }
