@@ -187,6 +187,8 @@ class EveBabelApp {
 
   async openOverlayWindow(channelName: string): Promise<void> {
     if (this.overlayWindow && !this.overlayWindow.isDestroyed()) {
+      this.overlayWindow.setAlwaysOnTop(true, 'screen-saver')
+      this.overlayWindow.moveTop()
       this.overlayWindow.focus()
       return
     }
@@ -219,6 +221,13 @@ class EveBabelApp {
     })
 
     this.overlayWindow.setHasShadow(false)
+
+    // Use the highest z-order level available on Windows so the overlay
+    // can stay above the game as long as EVE is NOT in exclusive fullscreen.
+    // (Exclusive-fullscreen DirectX games bypass DWM — no window can overlay them.
+    //  EVE must be set to "Borderless Windowed" or "Fixed Window" mode.)
+    this.overlayWindow.setAlwaysOnTop(true, 'screen-saver')
+
     this.installWindowStatePersistence(this.overlayWindow, 'overlay')
 
     this.overlayWindow.on('closed', () => {
@@ -227,6 +236,12 @@ class EveBabelApp {
 
     await this.loadRendererView(this.overlayWindow, 'overlay', channelName)
     this.overlayWindow.show()
+
+    // After showing, force the window to the absolute top and grab focus.
+    // This helps when the game is in borderless-windowed mode but may have
+    // a higher z-order from being a large surface.
+    this.overlayWindow.moveTop()
+    this.overlayWindow.focus()
   }
 
   async closeOverlayWindow(): Promise<void> {
