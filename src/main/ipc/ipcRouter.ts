@@ -33,6 +33,9 @@ export interface IpcController {
   addGlossaryEntry: (entry: { notes?: string; terms: Record<string, string[]> }) => Promise<BootstrapPayload>
   updateGlossaryEntry: (entry: GlossaryEntry) => Promise<BootstrapPayload>
   deleteGlossaryEntry: (id: string) => Promise<BootstrapPayload>
+  openOverlayWindow: (channelName: string) => Promise<void>
+  closeOverlayWindow: () => Promise<void>
+  setOverlayPenetration: (enabled: boolean) => Promise<void>
 }
 
 export function registerIpcRouter(controller: IpcController): void {
@@ -76,6 +79,15 @@ export function registerIpcRouter(controller: IpcController): void {
   })
   ipcMain.handle('app:deleteGlossaryEntry', (_event, id: string) => {
     return controller.deleteGlossaryEntry(id)
+  })
+  ipcMain.handle('app:openOverlayWindow', (_event, channelName: string) => {
+    return controller.openOverlayWindow(channelName)
+  })
+  ipcMain.handle('app:closeOverlayWindow', () => {
+    return controller.closeOverlayWindow()
+  })
+  ipcMain.handle('app:setOverlayPenetration', (_event, enabled: boolean) => {
+    return controller.setOverlayPenetration(enabled)
   })
   ipcMain.handle('app:chooseLogDirectory', async () => {
     const result = await dialog.showOpenDialog({

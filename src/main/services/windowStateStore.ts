@@ -1,7 +1,7 @@
 import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
 
-export type WindowKind = 'main' | 'settings'
+export type WindowKind = 'main' | 'settings' | 'overlay' | 'overlayHandle'
 
 export interface WindowStateSnapshot {
   width: number
@@ -58,7 +58,9 @@ function sanitizeWindowState(input: unknown): PersistedWindowState {
   const state = input as Record<string, unknown>
   return {
     main: sanitizeSnapshot(state.main),
-    settings: sanitizeSnapshot(state.settings)
+    settings: sanitizeSnapshot(state.settings),
+    overlay: sanitizeSnapshot(state.overlay),
+    overlayHandle: sanitizeSnapshot(state.overlayHandle)
   }
 }
 

@@ -44,6 +44,14 @@ const HISTORY_TRANSLATION_BACKFILL_LIMIT = 10
 class EveBabelApp {
   private mainWindow: BrowserWindow | null = null
   private settingsWindow: BrowserWindow | null = null
+  private overlayBodyWindow: BrowserWindow | null = null
+  private overlayHandleWindow: BrowserWindow | null = null
+  private overlayChannelName: string | null = null
+  private overlayPenetrationEnabled = false
+  private syncingOverlayPosition = false
+  private pendingOverlaySync = false
+  private overlayBodyRefWidth = 400
+  private overlayBodyRefHeight = 600
   private scanIndex: ScanIndex = {
     characters: [],
     channelsByCharacter: {},
@@ -182,6 +190,171 @@ class EveBabelApp {
     this.configureNativeWindow(this.settingsWindow, 'settings')
 
     await this.loadRendererView(this.settingsWindow, 'settings')
+  }
+
+  async openOverlayWindow(channelName: string): Promise<void> {
+    if (this.overlayBodyWindow && !this.overlayBodyWindow.isDestroyed()) {
+      this.overlayBodyWindow.focus()
+      return
+    }
+
+    this.overlayChannelName = channelName
+
+    const bodyBounds = this.resolveWindowBounds('overlay', {
+      width: 400,
+      height: 600,
+      minWidth: 280,
+      minHeight: 200
+    })
+
+    const bodyX = bodyBounds.x ?? 100
+    const bodyY = bodyBounds.y ?? 100
+    const bodyW = bodyBounds.width ?? 400
+    const bodyH = bodyBounds.height ?? 600
+
+    this.overlayBodyRefWidth = bodyW
+    this.overlayBodyRefHeight = bodyH
+
+    this.overlayBodyWindow = new BrowserWindow({
+      x: bodyX,
+      y: bodyY,
+      width: bodyW,
+      height: bodyH,
+      minWidth: 280,
+      minHeight: 200,
+      transparent: true,
+      frame: false,
+      alwaysOnTop: true,
+      skipTaskbar: true,
+      resizable: false,
+      show: false,
+      title: 'EVE Babel Overlay',
+      backgroundColor: '#00000000',
+      webPreferences: {
+        preload: join(currentDirectory, '../preload/preload.cjs'),
+        contextIsolation: true,
+        nodeIntegration: false,
+        spellcheck: false
+      }
+    })
+
+    const handleH = 32
+
+    this.overlayHandleWindow = new BrowserWindow({
+      x: bodyX,
+      y: bodyY - handleH,
+      width: bodyW,
+      height: handleH,
+      transparent: true,
+      frame: false,
+      alwaysOnTop: true,
+      skipTaskbar: true,
+      resizable: false,
+      show: false,
+      title: 'EVE Babel Overlay',
+      backgroundColor: '#00000000',
+      webPreferences: {
+        preload: join(currentDirectory, '../preload/preload.cjs'),
+        contextIsolation: true,
+        nodeIntegration: false,
+        spellcheck: false
+      }
+    })
+
+    this.overlayBodyWindow.setHasShadow(false)
+    this.overlayHandleWindow.setHasShadow(false)
+
+    this.overlayBodyWindow.on('resize', () => this.syncHandlePositionFromBody())
+    this.overlayBodyWindow.on('move', () => this.syncHandlePositionFromBody())
+
+    this.overlayHandleWindow.on('move', () => {
+      if (this.syncingOverlayPosition || this.pendingOverlaySync) {
+        return
+      }
+
+      if (!this.overlayBodyWindow || this.overlayBodyWindow.isDestroyed()) {
+        return
+      }
+
+      this.syncingOverlayPosition = true
+      const [hx, hy] = this.overlayHandleWindow!.getPosition()
+      this.overlayBodyWindow.setBounds({
+        x: hx,
+        y: hy + handleH,
+        width: this.overlayBodyRefWidth,
+        height: this.overlayBodyRefHeight
+      })
+      setTimeout(() => {
+        this.syncingOverlayPosition = false
+      }, 0)
+    })
+
+    this.overlayBodyWindow.on('closed', () => {
+      this.overlayBodyWindow = null
+      if (this.overlayHandleWindow && !this.overlayHandleWindow.isDestroyed()) {
+        this.overlayHandleWindow.close()
+      }
+    })
+
+    this.overlayHandleWindow.on('closed', () => {
+      this.overlayHandleWindow = null
+      if (this.overlayBodyWindow && !this.overlayBodyWindow.isDestroyed()) {
+        this.overlayBodyWindow.close()
+      }
+    })
+
+    this.installWindowStatePersistence(this.overlayBodyWindow, 'overlay')
+
+    await this.loadRendererView(this.overlayBodyWindow, 'overlay', channelName)
+    await this.loadRendererView(this.overlayHandleWindow, 'overlayHandle', channelName)
+
+    this.overlayBodyWindow.show()
+    this.overlayHandleWindow.show()
+    this.overlayPenetrationEnabled = false
+  }
+
+  async closeOverlayWindow(): Promise<void> {
+    if (this.overlayHandleWindow && !this.overlayHandleWindow.isDestroyed()) {
+      this.overlayHandleWindow.close()
+    }
+
+    if (this.overlayBodyWindow && !this.overlayBodyWindow.isDestroyed()) {
+      this.overlayBodyWindow.close()
+    }
+
+    this.overlayBodyWindow = null
+    this.overlayHandleWindow = null
+    this.overlayChannelName = null
+  }
+
+  async setOverlayPenetration(enabled: boolean): Promise<void> {
+    this.overlayPenetrationEnabled = enabled
+    if (this.overlayBodyWindow && !this.overlayBodyWindow.isDestroyed()) {
+      this.overlayBodyWindow.setIgnoreMouseEvents(enabled, { forward: true })
+    }
+  }
+
+  private syncHandlePositionFromBody(): void {
+    if (this.syncingOverlayPosition || this.pendingOverlaySync) {
+      return
+    }
+
+    if (!this.overlayHandleWindow || this.overlayHandleWindow.isDestroyed()) {
+      return
+    }
+
+    if (!this.overlayBodyWindow || this.overlayBodyWindow.isDestroyed()) {
+      return
+    }
+
+    this.syncingOverlayPosition = true
+    this.pendingOverlaySync = true
+    const [bx, by] = this.overlayBodyWindow.getPosition()
+    this.overlayHandleWindow.setBounds({ x: bx, y: by - 32, width: this.overlayBodyRefWidth, height: 32 })
+    setTimeout(() => {
+      this.syncingOverlayPosition = false
+      this.pendingOverlaySync = false
+    }, 0)
   }
 
   async getBootstrapData(): Promise<BootstrapPayload> {
@@ -689,7 +862,9 @@ class EveBabelApp {
   }
 
   private getOpenWindows(): BrowserWindow[] {
-    return [this.mainWindow, this.settingsWindow].filter((window): window is BrowserWindow => Boolean(window && !window.isDestroyed()))
+    return [this.mainWindow, this.settingsWindow, this.overlayBodyWindow, this.overlayHandleWindow].filter(
+      (window): window is BrowserWindow => Boolean(window && !window.isDestroyed())
+    )
   }
 
   private configureNativeWindow(window: BrowserWindow, kind: WindowKind): void {
@@ -833,16 +1008,35 @@ class EveBabelApp {
     }
   }
 
-  private async loadRendererView(targetWindow: BrowserWindow, view: 'main' | 'settings'): Promise<void> {
+  private async loadRendererView(
+    targetWindow: BrowserWindow,
+    view: 'main' | 'settings' | 'overlay' | 'overlayHandle',
+    channelName?: string
+  ): Promise<void> {
     if (process.env.ELECTRON_RENDERER_URL) {
-      const search = view === 'settings' ? '?view=settings' : ''
+      let search = ''
+      if (view === 'settings') {
+        search = '?view=settings'
+      } else if (view === 'overlay') {
+        search = `?view=overlay&channel=${encodeURIComponent(channelName ?? '')}`
+      } else if (view === 'overlayHandle') {
+        search = `?view=overlay-handle&channel=${encodeURIComponent(channelName ?? '')}`
+      }
+
       await targetWindow.loadURL(`${process.env.ELECTRON_RENDERER_URL}${search}`)
       return
     }
 
-    await targetWindow.loadFile(join(app.getAppPath(), 'out', 'renderer', 'index.html'), {
-      query: view === 'settings' ? { view: 'settings' } : undefined
-    })
+    let query: Record<string, string> | undefined
+    if (view === 'settings') {
+      query = { view: 'settings' }
+    } else if (view === 'overlay') {
+      query = { view: 'overlay', channel: channelName ?? '' }
+    } else if (view === 'overlayHandle') {
+      query = { view: 'overlay-handle', channel: channelName ?? '' }
+    }
+
+    await targetWindow.loadFile(join(app.getAppPath(), 'out', 'renderer', 'index.html'), { query })
   }
 }
 
@@ -881,7 +1075,10 @@ if (hasSingleInstanceLock) {
       getApiKeyForProfile: (profileId) => eveBabelApp.getApiKeyForProfile(profileId),
       addGlossaryEntry: (entry) => eveBabelApp.addGlossaryEntry(entry),
       updateGlossaryEntry: (entry) => eveBabelApp.updateGlossaryEntry(entry),
-      deleteGlossaryEntry: (id) => eveBabelApp.deleteGlossaryEntry(id)
+      deleteGlossaryEntry: (id) => eveBabelApp.deleteGlossaryEntry(id),
+      openOverlayWindow: (channelName) => eveBabelApp.openOverlayWindow(channelName),
+      closeOverlayWindow: () => eveBabelApp.closeOverlayWindow(),
+      setOverlayPenetration: (enabled) => eveBabelApp.setOverlayPenetration(enabled)
     })
     nativeTheme.on('updated', () => {
       eveBabelApp.refreshNativeTheme()

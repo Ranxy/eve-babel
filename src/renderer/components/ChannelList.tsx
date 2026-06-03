@@ -63,6 +63,15 @@ export function ChannelList(props: ChannelListProps) {
               </button>
               <div className="channel-actions">
                 <button
+                  aria-label={t('channelList.overlayLabel', { name: channel.channelName })}
+                  className="channel-overlay-button"
+                  onClick={() => void window.eveBabel.openOverlayWindow(channel.channelName)}
+                  title={t('channelList.overlayTitle')}
+                  type="button"
+                >
+                  ◧
+                </button>
+                <button
                   aria-label={channel.pinned ? t('channelList.unpinLabel', { name: channel.channelName }) : t('channelList.pinLabel', { name: channel.channelName })}
                   className={`channel-pin-button ${channel.pinned ? 'is-pinned' : ''}`}
                   onClick={() => props.onTogglePinned(channel.channelName, !channel.pinned)}

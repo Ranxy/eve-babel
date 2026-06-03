@@ -61,6 +61,8 @@ const en = {
     pinned: 'Pinned',
     pin: 'Pin',
     noSession: 'No session',
+    overlayLabel: 'Open [[name]] in overlay',
+    overlayTitle: 'Open in overlay window',
   },
 
   // ── MessageFeed ─────────────────────────────────────────────────────────

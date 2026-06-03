@@ -31,6 +31,9 @@ const api: EveBabelApi = {
   },
   updateGlossaryEntry: (entry: GlossaryEntry) => ipcRenderer.invoke('app:updateGlossaryEntry', entry),
   deleteGlossaryEntry: (id: string) => ipcRenderer.invoke('app:deleteGlossaryEntry', id),
+  openOverlayWindow: (channelName: string) => ipcRenderer.invoke('app:openOverlayWindow', channelName),
+  closeOverlayWindow: () => ipcRenderer.invoke('app:closeOverlayWindow'),
+  setOverlayPenetration: (enabled: boolean) => ipcRenderer.invoke('app:setOverlayPenetration', enabled),
   onMessagesUpsert: (listener: (messages: ChatMessage[]) => void) => {
     const subscription = (_event: Electron.IpcRendererEvent, messages: ChatMessage[]) => listener(messages)
     ipcRenderer.on('messages:upsert', subscription)

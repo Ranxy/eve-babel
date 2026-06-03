@@ -244,6 +244,9 @@ export interface EveBabelApi {
     listener: (payload: Pick<BootstrapPayload, 'directoryStatus' | 'watcherStatus' | 'apiStatus'>) => void
   ) => () => void
   onPortraitsUpdate: (listener: (portraits: Record<string, string>) => void) => () => void
+  openOverlayWindow: (channelName: string) => Promise<void>
+  closeOverlayWindow: () => Promise<void>
+  setOverlayPenetration: (enabled: boolean) => Promise<void>
 }
 
 export interface ParsedChunkResult {

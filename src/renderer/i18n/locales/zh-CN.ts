@@ -59,6 +59,8 @@ const zhCN: LocaleSchema = {
     pinned: '已固定',
     pin: '固定',
     noSession: '无会话',
+    overlayLabel: '将 [[name]] 打开到悬浮窗',
+    overlayTitle: '在悬浮窗中打开',
   },
 
   // ── 消息面板 ──────────────────────────────────────────────────────────
