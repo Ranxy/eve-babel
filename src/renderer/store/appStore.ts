@@ -48,7 +48,9 @@ const emptyState: AppStoreState = {
     modelName: '',
     debounceMs: 350,
     maxQueueSize: 100,
-    glossary: []
+    glossary: [],
+    autoGlossaryEnabled: true,
+    autoGlossaryMaxTerms: 30
   },
   llmProviderState: {
     providers: [],

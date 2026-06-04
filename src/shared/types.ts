@@ -152,6 +152,8 @@ export interface AppConfig {
   debounceMs: number
   maxQueueSize: number
   glossary: GlossaryEntry[]
+  autoGlossaryEnabled: boolean
+  autoGlossaryMaxTerms: number
 }
 
 export interface DirectoryStatus {

@@ -16,7 +16,9 @@ const baseConfig: AppConfig = {
   modelName: 'test-model',
   debounceMs: 0,
   maxQueueSize: 100,
-  glossary: []
+  glossary: [],
+  autoGlossaryEnabled: false,
+  autoGlossaryMaxTerms: 30
 }
 
 function createMessage(messageId: string, messageText: string): ChatMessage {

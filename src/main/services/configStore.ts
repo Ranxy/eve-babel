@@ -16,7 +16,9 @@ const DEFAULT_CONFIG: AppConfig = {
   modelName: '',
   debounceMs: 350,
   maxQueueSize: 100,
-  glossary: []
+  glossary: [],
+  autoGlossaryEnabled: true,
+  autoGlossaryMaxTerms: 30
 }
 
 function sanitizeConfig(input: Partial<AppConfig>): AppConfig {
@@ -35,7 +37,12 @@ function sanitizeConfig(input: Partial<AppConfig>): AppConfig {
         : DEFAULT_CONFIG.translationPrompt,
     debounceMs: typeof input.debounceMs === 'number' ? input.debounceMs : DEFAULT_CONFIG.debounceMs,
     maxQueueSize: typeof input.maxQueueSize === 'number' ? input.maxQueueSize : DEFAULT_CONFIG.maxQueueSize,
-    glossary: sanitizeGlossary(input.glossary)
+    glossary: sanitizeGlossary(input.glossary),
+    autoGlossaryEnabled: typeof input.autoGlossaryEnabled === 'boolean' ? input.autoGlossaryEnabled : DEFAULT_CONFIG.autoGlossaryEnabled,
+    autoGlossaryMaxTerms:
+      typeof input.autoGlossaryMaxTerms === 'number'
+        ? Math.max(5, Math.min(80, input.autoGlossaryMaxTerms))
+        : DEFAULT_CONFIG.autoGlossaryMaxTerms
   }
 }
 

@@ -3,6 +3,8 @@ import { randomUUID } from 'node:crypto'
 import { DEFAULT_TRANSLATION_PROMPT, type AppConfig, type ChatMessage } from '../../shared/types'
 import type { LlmDebugLogEntry } from './llmDebugLogger'
 import { LlmDebugLogger } from './llmDebugLogger'
+import type { MatchedTerm } from './termMatcher'
+import { TermMatcher } from './termMatcher'
 
 interface LlmClientOptions {
   apiKey: string
@@ -17,7 +19,10 @@ interface TranslationResponsePayload {
 }
 
 export class LlmClient {
-  constructor(private readonly debugLogger: LlmDebugLogger | null = null) {}
+  constructor(
+    private readonly debugLogger: LlmDebugLogger | null = null,
+    private readonly termMatcher: TermMatcher | null = null
+  ) {}
 
   async translateMessages(messages: ChatMessage[], options: LlmClientOptions): Promise<Map<string, string>> {
     if (messages.length === 0) {
@@ -26,13 +31,17 @@ export class LlmClient {
 
     const requestId = randomUUID()
     const requestUrl = `${options.config.apiBaseUrl.replace(/\/$/u, '')}/chat/completions`
+
+    // Collect auto-detected EVE terms from all messages in the batch
+    const autoTerms = this.collectAutoTerms(messages, options.config)
+
     const requestBody = {
       model: options.config.modelName,
       temperature: 0.1,
       messages: [
         {
           role: 'system',
-          content: buildBatchTranslationPrompt(options.config)
+          content: buildBatchTranslationPrompt(options.config, autoTerms)
         },
         {
           role: 'user',
@@ -161,6 +170,33 @@ export class LlmClient {
     return translatedText
   }
 
+  /**
+   * Collect auto-detected EVE terms from the batch of messages.
+   * Returns an empty array if the term matcher is not loaded or the feature is disabled.
+   */
+  private collectAutoTerms(messages: ChatMessage[], config: AppConfig): MatchedTerm[] {
+    if (!this.termMatcher || !config.autoGlossaryEnabled) {
+      return []
+    }
+
+    const maxTerms = config.autoGlossaryMaxTerms ?? 30
+    const seen = new Map<number, MatchedTerm>()
+
+    for (const message of messages) {
+      const matches = this.termMatcher.findMatches(message.messageText, config.targetLanguage, maxTerms)
+      for (const match of matches) {
+        if (!seen.has(match.keyId)) {
+          seen.set(match.keyId, match)
+        }
+      }
+    }
+
+    // Sort by sourceText length descending, then cap
+    const results = [...seen.values()]
+    results.sort((a, b) => b.sourceText.length - a.sourceText.length)
+    return results.slice(0, maxTerms)
+  }
+
   private async writeDebugLogIfEnabled(config: AppConfig, entry: LlmDebugLogEntry): Promise<void> {
     if (!config.llmDebugEnabled || !this.debugLogger) {
       return
@@ -170,7 +206,7 @@ export class LlmClient {
   }
 }
 
-function buildBatchTranslationPrompt(config: AppConfig): string {
+function buildBatchTranslationPrompt(config: AppConfig, autoTerms: MatchedTerm[]): string {
   const template = config.translationPrompt.trim() || DEFAULT_TRANSLATION_PROMPT
   const resolvedTemplate = /\{\{\s*targetLanguage\s*\}\}/u.test(template)
     ? template.replace(/\{\{\s*targetLanguage\s*\}\}/gu, config.targetLanguage)
@@ -184,12 +220,43 @@ function buildBatchTranslationPrompt(config: AppConfig): string {
     'Include every input messageId exactly once and do not add extra fields.'
   ]
 
+  // Auto-detected EVE terms (from the translation table CSV)
+  if (autoTerms.length > 0) {
+    baseSegments.push(buildAutoGlossarySegment(autoTerms, config.targetLanguage))
+  }
+
+  // User-managed glossary (appended after auto terms so it takes precedence)
   const glossarySegment = buildGlossaryPromptSegment(config.glossary ?? [], config.targetLanguage)
   if (glossarySegment) {
     baseSegments.push(glossarySegment)
   }
 
   return baseSegments.join('\n\n')
+}
+
+/**
+ * Build a prompt segment listing auto-detected terms and their translations.
+ */
+function buildAutoGlossarySegment(terms: MatchedTerm[], targetLanguage: string): string {
+  // Filter out entries where matchedText == translatedText (same language — no value to the LLM)
+  const useful = terms.filter((t) => t.matchedText.toLowerCase() !== t.translatedText.toLowerCase())
+
+  if (useful.length === 0) return ''
+
+  const lines = [
+    `### Auto-detected EVE Terms (target: ${targetLanguage})`,
+    'The following EVE-specific terms were detected in the chat messages below.',
+    'When translating, use the target-language form shown for each term.',
+    ''
+  ]
+
+  for (const term of useful) {
+    // matchedText = the actual substring from the chat (could be Chinese, English, etc.)
+    // translatedText = the translation in the target language
+    lines.push(`- \`${term.matchedText}\` → ${term.translatedText}`)
+  }
+
+  return lines.join('\n')
 }
 
 function buildGlossaryPromptSegment(glossary: Array<{ terms: Record<string, string[]>; notes?: string }>, targetLanguage: string): string | null {

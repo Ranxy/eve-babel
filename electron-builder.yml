@@ -6,6 +6,12 @@ directories:
 files:
   - out/**/*
   - package.json
+extraResources:
+  - from: resources
+    to: resources
+    filter:
+      - "*.dat"
+      - "*.json"
 asar: true
 artifactName: ${productName}-${version}-${arch}.${ext}
 win:

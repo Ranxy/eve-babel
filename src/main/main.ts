@@ -34,6 +34,7 @@ import { LlmClient } from './services/llmClient'
 import { LlmConfigStore, type LlmResolvedConfig } from './services/llmConfigStore'
 import { fetchBuiltinProviderModels, getBuiltinLlmProviders } from './services/llmProviderCatalog'
 import { MessageRepository } from './services/messageRepository'
+import { TermMatcher } from './services/termMatcher'
 import { TranslationQueue } from './services/translationQueue'
 import { WindowStateStore, type WindowKind, type WindowStateSnapshot } from './services/windowStateStore'
 
@@ -66,8 +67,12 @@ class EveBabelApp {
   private readonly parser = new ChatLogParser()
   private readonly characterRegistry = new CharacterRegistry()
   private readonly channelRegistry = new ChannelRegistry()
+  private readonly termMatcher = new TermMatcher()
   private readonly translationQueue = new TranslationQueue(
-    new LlmClient(new LlmDebugLogger(LlmDebugLogger.createDefaultDirectory(app.getPath('userData')))),
+    new LlmClient(
+      new LlmDebugLogger(LlmDebugLogger.createDefaultDirectory(app.getPath('userData'))),
+      this.termMatcher
+    ),
     this.llmConfigStore,
     this.messageRepository,
     {
@@ -97,11 +102,22 @@ class EveBabelApp {
     modelName: '',
     debounceMs: 350,
     maxQueueSize: 100,
-    glossary: []
+    glossary: [],
+    autoGlossaryEnabled: true,
+    autoGlossaryMaxTerms: 30
   }
 
   async initialize(): Promise<void> {
     this.registerPortraitProtocol()
+
+    // Load the term matcher (auto EVE glossary) — non-blocking on failure
+    const resourcesDir = app.isPackaged
+      ? process.resourcesPath
+      : join(app.getAppPath(), 'resources')
+    const loaded = await this.termMatcher.load(resourcesDir)
+    if (!loaded) {
+      console.warn('[EveBabel] Term matcher not loaded — auto glossary disabled')
+    }
 
     const persistedConfig = await this.configStore.load()
     const llmConfig = await this.llmConfigStore.load()

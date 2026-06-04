@@ -11,7 +11,8 @@
     "pack": "npm run build && electron-builder --dir --config electron-builder.yml -c.directories.output=dist/pack",
     "dist": "npm run build && electron-builder --win nsis --config electron-builder.yml -c.directories.output=dist/release",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run"
+    "test": "vitest run",
+    "build:terms": "npx tsx scripts/build-translation-table.ts"
   },
   "dependencies": {
     "chokidar": "^5.0.0",
