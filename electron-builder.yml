@@ -1,6 +1,5 @@
 appId: com.evebabel.app
 productName: EVE-Babel
-electronDist: node_modules/electron/dist
 directories:
   output: dist
 files:
