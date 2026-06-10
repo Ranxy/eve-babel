@@ -38,7 +38,7 @@ jobs:
         run: npm run test
 
       - name: Build Windows installer
-        run: npm run dist
+        run: npm run build && npx electron-builder --win nsis --config electron-builder.yml -c.directories.output=dist/release --publish never
 
       - name: Upload packaged artifacts
         uses: actions/upload-artifact@v4
